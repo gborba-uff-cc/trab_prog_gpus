@@ -15,12 +15,18 @@ Modificar o simulador desenvolvido durante as aulas de programação científica
 ## Requisitos originais
 
 - Linguagem Julia
+  - Pacotes:
+    - Dates
+    - JSON
+    - SparseArrays
 - Linguagem Python 3
-  - matplotlib
-  - numpy
-  - PyOpenGL
-  - PyQt5
+  - Pacotes:
+    - matplotlib
+    - numpy
+    - PyOpenGL
+    - PyQt5
+    - jsonschema
 
 ## Observações
 
-- O código inicial é o que foi escrito por mim durante as aulas da disciplina de 'Programação Científica' com a finalidade de ser avaliado.
+- O código inicial é o que foi escrito por mim durante as aulas da disciplina de 'Programação Científica' com a finalidade de servir como avaliação.
