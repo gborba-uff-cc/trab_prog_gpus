@@ -13,7 +13,6 @@ fim
 =#
 
 using JSON
-using Plots
 using Dates
 
 function readJson(filename)
