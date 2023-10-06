@@ -116,9 +116,9 @@ class MyWindow(QMainWindow):
             # self.__savePointCloud(pointCloud, 'model_point_cloud.json')
             bma = 0.05 - 0.0
 
-            prefix = '.output/q2in'
+            prefix = './output/q2in'
             simParam.step_size = 0.0005
-            cloudSizeStr = f'{self.modelPointCloudDialog.x}x{self.modelPointCloudDialog.y}'
+            cloudSizeStr = f'{self.modelPointCloudDialog.desiredX}x{self.modelPointCloudDialog.desiredY}'
             simParam.number_steps = int(bma/simParam.step_size)
             simParam.saveAsJson(f'{prefix}_1_{cloudSizeStr}.json')
             simParam.step_size = 0.0001
