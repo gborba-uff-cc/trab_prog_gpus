@@ -8,7 +8,9 @@
 #define MAXIMO_CARACTERES_BUFFER_ARQUIVO MAXIMO_BYTES_ARQUIVO_JSON / sizeof(TIPO_CARACTERE_ARQUIVO)
 
 
-cJSON *carregarJSON(const char *jsonFilePath);
+cJSON *carregarJSON(
+    const char *jsonFilePath
+);
 
 
 cJSON *carregarJSON(const char *jsonFilePath)
@@ -67,7 +69,8 @@ int main(
     json = carregarJSON(argv[1]);
 
     float h = 0.0, k = 0.0;
-    int *posicoesGrade, *conexoes, *condicoesContorno;
+    int   *posicoesGrade, *conexoes;
+    float *condicoesContorno;
     carregarParametros(&h, &k, &posicoesGrade, &conexoes, &condicoesContorno, json);
     cJSON_Delete(json);
     return 0;
