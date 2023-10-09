@@ -187,5 +187,8 @@ int main(
     float *condicoesContorno;
     carregarParametros(&h, &k, &posicoesGrade, &conexoes, &condicoesContorno, json);
     cJSON_Delete(json);
+    free(posicoesGrade);
+    free(conexoes);
+    free(condicoesContorno);
     return 0;
 }
