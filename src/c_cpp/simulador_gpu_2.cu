@@ -24,7 +24,18 @@ int descobrirTamanhoMatriz(
     size_t *bufferNumeroColunas,
     cJSON *const matriz
 );
-
+int copiarMatrizIntJsonParaArray(
+    int *bufferArray,
+    cJSON *const matriz,
+    size_t matrizNumeroLinhas,
+    size_t matrizNumeroColunas
+);
+int copiarMatrizFloatJsonParaArray(
+    float *bufferArray,
+    cJSON *const matriz,
+    size_t matrizNumeroLinhas,
+    size_t matrizNumeroColunas
+);
 
 cJSON *carregarJSON(const char *jsonFilePath)
 {
@@ -164,6 +175,48 @@ int descobrirTamanhoMatriz(
     }
     *bufferNumeroLinhas  = l;
     *bufferNumeroColunas = c0;
+    return 0;
+}
+
+int copiarMatrizIntJsonParaArray(
+    int *bufferArray,
+    cJSON *const matriz,
+    size_t matrizNumeroLinhas,
+    size_t matrizNumeroColunas
+) {
+    cJSON *linha = NULL, *coluna = NULL;
+    size_t l = 0, c = 0, i = 0;
+
+    cJSON_ArrayForEach(linha, matriz) {
+        c = 0;
+        cJSON_ArrayForEach(coluna, linha) {
+            i = l*matrizNumeroColunas+c;
+            bufferArray[i] = (int) cJSON_GetNumberValue(coluna);
+            c++;
+        }
+        l++;
+    }
+    return 0;
+}
+
+int copiarMatrizFloatJsonParaArray(
+    float *bufferArray,
+    cJSON *const matriz,
+    size_t matrizNumeroLinhas,
+    size_t matrizNumeroColunas
+) {
+    cJSON *linha = NULL, *coluna = NULL;
+    size_t l = 0, c = 0, i = 0;
+
+    cJSON_ArrayForEach(linha, matriz) {
+        c = 0;
+        cJSON_ArrayForEach(coluna, linha) {
+            i = l*matrizNumeroColunas+c;
+            bufferArray[i] = (float) cJSON_GetNumberValue(coluna);
+            c++;
+        }
+        l++;
+    }
     return 0;
 }
 
