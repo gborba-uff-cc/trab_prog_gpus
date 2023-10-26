@@ -15,8 +15,14 @@ int carregarParametros(
     float *h,
     float *k,
     int   **posicoesGrade,
+    size_t *linhasPosicoesGrade,
+    size_t *colunassPosicoesGrade,
     int   **conexoes,
+    size_t *linhasConexoes,
+    size_t *colunassConexoes,
     float **condicoesContorno,
+    size_t *linhasContorno,
+    size_t *colunasContorno,
     const cJSON *json
 );
 int descobrirTamanhoMatriz(
@@ -76,13 +82,18 @@ cJSON *carregarJSON(const char *jsonFilePath)
     return jsonStruct;
 }
 
-// REVIEW - testar
 int carregarParametros(
     float *h,
     float *k,
     int   **posicoesGrade,
+    size_t *linhasPosicoesGrade,
+    size_t *colunassPosicoesGrade,
     int   **conexoes,
+    size_t *linhasConexoes,
+    size_t *colunassConexoes,
     float **condicoesContorno,
+    size_t *linhasContorno,
+    size_t *colunasContorno,
     const cJSON *json
 )
 {
@@ -106,46 +117,55 @@ int carregarParametros(
         return 2;
     }
 //
-    size_t linhasPosicoes = 0, colunasPosicoes = 0;
-    size_t linhasConexoes = 0, colunasConexoes = 0;
-    size_t linhasCondCont = 0, colunasCondCont = 0;
+    size_t _linhasPosicoes = 0, _colunasPosicoes = 0;
+    size_t _linhasConexoes = 0, _colunasConexoes = 0;
+    size_t _linhasCondCont = 0, _colunasCondCont = 0;
 
     int erro;
-    erro = descobrirTamanhoMatriz(&linhasPosicoes, &colunasPosicoes, _posicoes);
+    erro = descobrirTamanhoMatriz(&_linhasPosicoes, &_colunasPosicoes, _posicoes);
     if (erro) {
         return 3;
     }
-    erro = descobrirTamanhoMatriz(&linhasConexoes, &colunasConexoes, _conexoes);
+    erro = descobrirTamanhoMatriz(&_linhasConexoes, &_colunasConexoes, _conexoes);
     if (erro) {
         return 4;
     }
-    erro = descobrirTamanhoMatriz(&linhasCondCont, &colunasCondCont, _condCont);
+    erro = descobrirTamanhoMatriz(&_linhasCondCont, &_colunasCondCont, _condCont);
     if (erro) {
         return 5;
     }
 //
-    int *bufferPosicoes = (int *)     malloc(linhasPosicoes*colunasPosicoes*sizeof(int));
+    int   *bufferPosicoes = (int *)   malloc(_linhasPosicoes*_colunasPosicoes*sizeof(int));
     if (bufferPosicoes == NULL) {
         return 6;
     }
-    int   *bufferConexoes = (int *)   malloc(linhasConexoes*colunasConexoes*sizeof(int));
+    int   *bufferConexoes = (int *)   malloc(_linhasConexoes*_colunasConexoes*sizeof(int));
     if (bufferConexoes == NULL) {
         return 7;
     }
-    float *bufferCondCont = (float *) malloc(linhasCondCont*colunasCondCont*sizeof(float));
+    float *bufferCondCont = (float *) malloc(_linhasCondCont*_colunasCondCont*sizeof(float));
     if (bufferCondCont == NULL) {
         return 8;
     }
+    copiarMatrizIntJsonParaArray(bufferPosicoes, _posicoes, _linhasPosicoes, _colunasPosicoes);
+    copiarMatrizIntJsonParaArray(bufferConexoes, _conexoes, _linhasConexoes, _colunasConexoes);
+    copiarMatrizFloatJsonParaArray(bufferCondCont, _condCont, _linhasCondCont, _colunasCondCont);
 //
     *h = cJSON_GetNumberValue(_h);
     *k = cJSON_GetNumberValue(_k);
-    *posicoesGrade     = bufferPosicoes;
+    *posicoesGrade         = bufferPosicoes;
+    *linhasPosicoesGrade   = _linhasPosicoes;
+    *colunassPosicoesGrade = _colunasPosicoes;
     *conexoes          = bufferConexoes;
+    *linhasConexoes    = _linhasConexoes;
+    *colunassConexoes  = _colunasConexoes;
     *condicoesContorno = bufferCondCont;
+    *linhasContorno    = _linhasCondCont;
+    *colunasContorno   = _colunasCondCont;
+
     return 0;
 }
 
-// REVIEW - testar
 int descobrirTamanhoMatriz(
     size_t *bufferNumeroLinhas,
     size_t *bufferNumeroColunas,
@@ -236,9 +256,20 @@ int main(
     json = carregarJSON(argv[1]);
 
     float h = 0.0, k = 0.0;
-    int   *posicoesGrade, *conexoes;
-    float *condicoesContorno;
-    carregarParametros(&h, &k, &posicoesGrade, &conexoes, &condicoesContorno, json);
+    int   *posicoesGrade = NULL;
+    size_t linhasPosicoesGrade, colunasPosicoesGrade;
+    int   *conexoes = NULL;
+    size_t linhasConexoes, colunasConexoes;
+    float *condicoesContorno = NULL;
+    size_t linhasCondCont, colunasCondCont;
+    carregarParametros(
+        &h, &k,
+        &posicoesGrade, &linhasPosicoesGrade, &colunasPosicoesGrade,
+        &conexoes, &linhasConexoes, &colunasConexoes,
+        &condicoesContorno, &linhasCondCont, &colunasCondCont,
+        json
+    );
+
     cJSON_Delete(json);
     free(posicoesGrade);
     free(conexoes);
