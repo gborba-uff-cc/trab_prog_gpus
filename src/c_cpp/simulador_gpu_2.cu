@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "cJSON.h"
 
@@ -41,6 +42,40 @@ int copiarMatrizFloatJsonParaArray(
     cJSON *const matriz,
     size_t matrizNumeroLinhas,
     size_t matrizNumeroColunas
+);
+int salvarCsvSimulador2(
+    // matriz bidimensional
+    const int *bufferDominio,
+    const size_t linhasDominio,
+    const size_t colunasDominio,
+    // array
+    const float *bufferImagem,
+    const size_t colunasImagem,
+    const char* const caminhoNomeArquivo
+);
+int salvarJsonSimulador2(
+    // matriz bidimensional
+    const int *bufferDominio,
+    const size_t linhasDominio,
+    const size_t colunasDominio,
+    // array
+    const float *bufferImagem,
+    const size_t colunasImagem,
+    const char* const caminhoNomeArquivo
+);
+cJSON *gerarResultadoJsonSimulador2(
+    // matriz bidimensional
+    const int *bufferDominio,
+    const size_t linhasDominio,
+    const size_t colunasDominio,
+    // array
+    const float *bufferImagem,
+    const size_t colunasImagem
+);
+void concatenarStrings(
+    char **str,
+    const char* const bufferStr1,
+    const char* const bufferStr2
 );
 
 cJSON *carregarJSON(const char *jsonFilePath)
@@ -239,6 +274,151 @@ int copiarMatrizFloatJsonParaArray(
     }
     return 0;
 }
+int salvarCsvSimulador2(
+    // matriz bidimensional
+    const int *bufferDominio,
+    const size_t linhasDominio,
+    const size_t colunasDominio,
+    // array
+    const float *bufferImagem,
+    const size_t linhasImagem,
+    const char* const caminhoNomeArquivo
+) {
+    if (bufferDominio == NULL) {
+        return 1;
+    }
+    else if (bufferImagem == NULL) {
+        return 2;
+    }
+    else if (linhasDominio !=linhasImagem) {
+        return 3;
+    }
+
+
+    FILE *f = NULL;
+    errno_t erro = 0;
+
+    erro = fopen_s(&f, caminhoNomeArquivo, "wb");
+    if (erro) {
+        fclose(f);
+        return 4;
+    }
+
+    char linha[55] = {0};
+
+    fputs("iPos,jPos,Temperature\n", f);
+    for (size_t i=0; i<linhasDominio; i++) {
+        for (size_t j=0; j<sizeof(linha);j++) {
+            linha[j] = '\0';
+        }
+        erro = sprintf_s(
+            linha,
+            sizeof(linha),
+            "%d,%d,%.15f\n",
+            bufferDominio[i*colunasDominio],
+            bufferDominio[i*colunasDominio+1],
+            bufferImagem[i]
+        );
+        if (erro < 1) {
+            return 5;
+        }
+        fputs(linha, f);
+    }
+
+    fclose(f);
+    return 0;
+}
+int salvarJsonSimulador2(
+    // matriz bidimensional
+    const int *bufferDominio,
+    const size_t linhasDominio,
+    const size_t colunasDominio,
+    // array
+    const float *bufferImagem,
+    const size_t linhasImagem,
+    const char* const caminhoNomeArquivo
+) {
+    if (bufferDominio == NULL) {
+        return 1;
+    }
+    else if (bufferImagem == NULL) {
+        return 2;
+    }
+    else if (linhasDominio !=linhasImagem) {
+        return 3;
+    }
+
+    cJSON *json = gerarResultadoJsonSimulador2(
+        bufferDominio,
+        linhasDominio,
+        colunasDominio,
+        bufferImagem,
+        linhasImagem
+    );
+
+    if (json == NULL) {
+        return 4;
+    }
+
+    FILE *f = NULL;
+    errno_t erro = 0;
+
+    erro = fopen_s(&f, caminhoNomeArquivo, "wb");
+
+    if (erro) {
+        fclose(f);
+        return 5;
+    }
+
+    const char *conteudoJson = cJSON_PrintUnformatted(json);
+    fputs(conteudoJson, f);
+
+    fclose(f);
+    return 0;
+}
+cJSON *gerarResultadoJsonSimulador2(
+    // matriz bidimensional
+    const int *bufferDominio,
+    const size_t linhasDominio,
+    const size_t colunasDominio,
+    // array
+    const float *bufferImagem,
+    const size_t linhasImagem
+) {
+    cJSON *resultado = cJSON_CreateObject();
+    cJSON *_dominio  = cJSON_AddArrayToObject(resultado, "domain");
+    for (size_t i=0; _dominio != NULL && i<linhasDominio; i++) {
+        cJSON *anEntry = cJSON_CreateIntArray(
+            &bufferDominio[i*colunasDominio],
+            colunasDominio
+        );
+        if (anEntry == NULL) {
+            cJSON_Delete(_dominio);
+            break;
+        }
+        else {
+            cJSON_AddItemToArray(_dominio, anEntry);
+        }
+    }
+    cJSON *_imagem = cJSON_CreateFloatArray(bufferImagem, linhasImagem);
+    cJSON_AddItemToObject(resultado, "image", _imagem);
+
+    if (_dominio == NULL || _imagem == NULL) {
+        cJSON_Delete(resultado);
+        resultado = NULL;
+    }
+
+    return resultado;
+}
+void concatenarStrings(char **str, const char* const bufferStr1, const char* const bufferStr2) {
+    size_t tamanhoBuffer = strlen(bufferStr1) + strlen(bufferStr2) + 1;
+    char* const buffer = (char *) malloc(tamanhoBuffer);
+
+    strcpy_s(buffer, tamanhoBuffer, bufferStr1);
+    strcat_s(buffer, tamanhoBuffer, bufferStr2);
+
+    *str = buffer;
+}
 
 int main(
     int argc,
@@ -269,10 +449,44 @@ int main(
         &condicoesContorno, &linhasCondCont, &colunasCondCont,
         json
     );
+    float *resultado = NULL;
+    size_t elementosResultado = 0;
+
+    char caminhoNomeArquivo[] = ".\\testeSimulador2";
+    char *caminhoNomeArquivoJson;
+    char *caminhoNomeArquivoCsv;
+    concatenarStrings(
+        &caminhoNomeArquivoJson,
+        caminhoNomeArquivo,
+        ".json"
+    );
+    concatenarStrings(
+        &caminhoNomeArquivoCsv,
+        caminhoNomeArquivo,
+        ".csv"
+    );
+    salvarJsonSimulador2(
+        (int*) posicoesGrade,
+        linhasPosicoesGrade,
+        colunasPosicoesGrade,
+        resultado,
+        elementosResultado,
+        caminhoNomeArquivoJson
+    );
+    salvarCsvSimulador2(
+        (int*) posicoesGrade,
+        linhasPosicoesGrade,
+        colunasPosicoesGrade,
+        resultado,
+        elementosResultado,
+        caminhoNomeArquivoCsv
+    );
 
     cJSON_Delete(json);
     free(posicoesGrade);
     free(conexoes);
     free(condicoesContorno);
+    free(caminhoNomeArquivoJson);
+    free(caminhoNomeArquivoCsv);
     return 0;
 }
