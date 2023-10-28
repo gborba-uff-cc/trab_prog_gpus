@@ -2,7 +2,33 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
+
 #include "cJSON.h"
+
+// =============================================================================
+# define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__, 0); }
+inline void gpuAssert(
+    cudaError_t code,
+    const char *file,
+    int line,
+    int abort
+) {
+    if (code != cudaSuccess) {
+        fprintf(
+            stderr,
+            "GPUassert: %s %s %d\n",
+            cudaGetErrorString(code),
+            file,
+            line
+        );
+        if (abort) {
+            exit(code);
+        }
+    }
+}
+// =============================================================================
 
 #define TIPO_CARACTERE_ARQUIVO char
 #define MAXIMO_BYTES_ARQUIVO_JSON 1000001
@@ -77,6 +103,42 @@ void concatenarStrings(
     const char* const bufferStr1,
     const char* const bufferStr2
 );
+int resolverPvcTemperatura(
+    float *resultado,
+    float *tamanhoResultado,
+    float h,
+    float k,
+    int *posicoesGrade,
+    size_t linhasPosicoesGrade,
+    size_t colunasPosicoesGrade,
+    int *conexoes,
+    size_t linhasConexoes,
+    size_t colunasConexoes,
+    float *condicoesContorno,
+    size_t linhasCondCont,
+    size_t colunasCondCont
+);
+void k_resolverPvcTempertura(
+    // matriz bidimensional [n,2]
+    const int *bufferConexoes,
+    const size_t linhasConexoes,
+    const size_t colunasConexoes,
+    //
+    const float *bufferCondCont,
+    const size_t linhasCondCont,
+    const size_t colunasCondCont,
+    //
+    const float *coeficientes_CDEBC,
+    const size_t linhasCoeficientes,
+    // matriz bidimensional [n,n]
+    float *bufferA,
+    const size_t linhasA,
+    const size_t colunasA,
+    // array bidimensional [n]
+    float *bufferB,
+    const size_t linhasB
+);
+// =============================================================================
 
 cJSON *carregarJSON(const char *jsonFilePath)
 {
@@ -419,6 +481,192 @@ void concatenarStrings(char **str, const char* const bufferStr1, const char* con
 
     *str = buffer;
 }
+// resolve o problema do valor de contorno de temperatura bidimensional.
+int resolverPvcTemperatura(
+    float *resultado,
+    float *tamanhoResultado,
+    float h,
+    float k,
+    int *posicoesGrade,
+    size_t linhasPosicoesGrade,
+    size_t colunasPosicoesGrade,
+    int *conexoes,
+    size_t linhasConexoes,
+    size_t colunasConexoes,
+    float *condicoesContorno,
+    size_t linhasCondCont,
+    size_t colunasCondCont
+) {
+    const float hkRatio = h/k;
+    const float kCentro = 2*(hkRatio*hkRatio+1);
+    const float kDireita = -1.0;
+    const float kEsquerda = kEsquerda;
+    const float kAbaixo = -(hkRatio*hkRatio);
+    const float kAcima = kAbaixo;
+    const float coeficientes_CentroDEBC[] = {
+        kCentro, kDireita, kEsquerda, kAbaixo, kAcima
+    };
+
+    int *d_conexoes = NULL;
+    size_t bytesConexoes = sizeof(int)*linhasConexoes*colunasConexoes;
+    float *d_condicoesContorno = NULL;
+    size_t bytesCondCont = sizeof(float)*linhasCondCont*colunasCondCont;
+    float *d_coeficientes_CentroDEBC = NULL;
+    const size_t linhasCoeficientes = 5;
+    const size_t bytesCoeficientes = sizeof(float)*linhasCoeficientes;
+    float *d_A = NULL;
+    const size_t linhasA = linhasConexoes;
+    const size_t colunasA = linhasConexoes;
+    const size_t bytesA = sizeof(float)*linhasA*colunasA;
+    float *d_b = NULL;
+    size_t linhasB = linhasConexoes;
+    size_t bytesB = sizeof(float)*linhasB;
+
+    cudaMalloc(
+        (void **) &d_conexoes,
+        bytesConexoes
+    );
+    cudaMalloc(
+        (void **) &d_condicoesContorno,
+        bytesCondCont
+    );
+    cudaMalloc(
+        (void **) &d_coeficientes_CentroDEBC,
+        bytesCoeficientes
+    );
+    cudaMalloc(
+        (void **) &d_A,
+        bytesA
+    );
+    cudaMalloc(
+        (void **) &d_b,
+        bytesB
+    );
+
+    cudaMemcpyAsync(
+        d_conexoes,
+        conexoes,
+        bytesCoeficientes,
+        cudaMemcpyHostToDevice
+    );
+    cudaMemcpyAsync(
+        d_condicoesContorno,
+        condicoesContorno,
+        bytesCoeficientes,
+        cudaMemcpyHostToDevice
+    );
+    cudaMemcpyAsync(
+        d_coeficientes_CentroDEBC,
+        coeficientes_CentroDEBC,
+        bytesCoeficientes,
+        cudaMemcpyHostToDevice
+    );
+    // SECTION - REVIEW
+    cudaMemset(d_A, 0, bytesA);
+    cudaMemset(d_b, 0, bytesB);
+    // !SECTION
+
+    // SECTION - prepara sistema de equacoes
+    size_t p1TamanhoProblema = linhasConexoes;
+    size_t p1TamanhoBloco = 32;
+    size_t p1NumeroBlocos = (p1TamanhoProblema+1)/p1TamanhoBloco-1;
+
+    cudaDeviceSynchronize();
+    k_resolverPvcTempertura<<<p1NumeroBlocos, p1TamanhoBloco>>>(
+        d_conexoes, linhasConexoes, colunasConexoes,
+        d_condicoesContorno, linhasCondCont, colunasCondCont,
+        d_coeficientes_CentroDEBC, linhasCoeficientes,
+        d_A, linhasA, colunasA,
+        d_b, linhasB
+    );
+    cudaDeviceSynchronize();
+    // !SECTION
+
+    // SECTION - soluciona sistema de equações
+    // !SECTION
+
+    float *a = malloc(bytesA);
+    float *b = malloc(bytesB);
+    if (b == NULL || a==NULL) {
+        return 1;
+    }
+
+    cudaMemcpyAsync(
+        a,
+        d_A,
+        bytesA,
+        cudaMemcpyDeviceToHost
+    );
+    cudaMemcpyAsync(
+        b,
+        d_b,
+        bytesB,
+        cudaMemcpyDeviceToHost
+    );
+    cudaDeviceSynchronize();
+
+    for (size_t i=0;i<linhasA;i++) {
+        for (size_t j=0;i<colunasA;j++) {
+            printf("%f ", a[i*colunasA + j]);
+        }
+        puts("");
+    }
+
+    cudaFree(d_conexoes);
+    cudaFree(d_condicoesContorno);
+    cudaFree(d_coeficientes_CentroDEBC);
+    cudaFree(d_A);
+    cudaFree(d_b);
+    free(a);
+    free(b);
+    return 0;
+}
+// resolve o problema do valor de contorno de temperatura bidimensional.
+__global__ void k_resolverPvcTempertura(
+    // matriz bidimensional [n,2]
+    const int *bufferConexoes,
+    const size_t linhasConexoes,
+    const size_t colunasConexoes,
+    //
+    const float *bufferCondCont,
+    const size_t linhasCondCont,
+    const size_t colunasCondCont,
+    //
+    const float *coeficientes_CDEBC,
+    const size_t linhasCoeficientes,
+    // matriz bidimensional [n,n]
+    float *bufferA,
+    const size_t linhasA,
+    const size_t colunasA,
+    // array bidimensional [n]
+    float *bufferB,
+    const size_t linhasB
+) {
+    const size_t idxB = threadIdx.x;
+    const size_t idxG = blockIdx.x + blockDim.x * threadIdx.x;
+    const size_t idxLinha = idxG;
+
+    if (idxG >= linhasA) {
+        return;
+    }
+
+    bufferA[idxG] = coeficientes_CDEBC[0];
+    size_t idxVizinho = 0;
+    for (size_t numVizinho=1; numVizinho<linhasCoeficientes; numVizinho++) {
+        idxVizinho = bufferConexoes[idxLinha*colunasConexoes + (numVizinho-1)];
+        if (idxVizinho > 0) {
+            idxVizinho--;
+            if (bufferCondCont[idxVizinho*2 + 0] == 1) {
+                bufferB[idxG] += bufferCondCont[idxVizinho*2 + 1];
+            }
+            else {
+                bufferA[idxG*colunasA + idxVizinho] = coeficientes_CDEBC[numVizinho];
+            }
+        }
+    }
+
+    return;
+}
 
 int main(
     int argc,
@@ -451,6 +699,14 @@ int main(
     );
     float *resultado = NULL;
     size_t elementosResultado = 0;
+
+    resolverPvcTemperatura(
+        resultado,
+        h, k,
+        posicoesGrade, linhasPosicoesGrade, colunasPosicoesGrade,
+        conexoes, linhasConexoes, colunasConexoes,
+        condicoesContorno, linhasCondCont, colunasCondCont
+    );
 
     char caminhoNomeArquivo[] = ".\\testeSimulador2";
     char *caminhoNomeArquivoJson;
@@ -490,3 +746,56 @@ int main(
     free(caminhoNomeArquivoCsv);
     return 0;
 }
+
+/* NOTE
+// ver matrizes carregadas do json
+    for (size_t i = 0; i < linhasPosicoesGrade; i++) {
+        for (size_t j = 0; j < colunasPosicoesGrade; j++) {
+            printf("%d ", posicoesGrade[j+i*colunasPosicoesGrade]);
+        }
+        puts("");
+    }
+
+    puts("");
+    for (size_t i = 0; i < linhasConexoes; i++) {
+        for (size_t j = 0; j < colunasConexoes; j++) {
+            printf("%d ", conexoes[j+i*colunasConexoes]);
+        }
+        puts("");
+    }
+
+    puts("");
+    for (size_t i = 0; i < linhasCondCont; i++) {
+        for (size_t j = 0; j < colunasCondCont; j++) {
+            printf("%f ", condicoesContorno[j+i*colunasCondCont]);
+        }
+        puts("");
+    }
+
+// dominio e imagem para a testar o salvamento em json e csv
+    int dominio[5][2] = {
+        {1,2},
+        {3,4},
+        {5,6},
+        {7,8},
+        {9,10}
+    };
+    float imagem[5] = {1.0,2.0,3.0,4.0,5.0};
+
+    salvarJsonSimulador2(
+        (int*) dominio,
+        5,
+        2,
+        imagem,
+        5,
+        caminhoNomeArquivoJson
+    );
+    salvarCsvSimulador2(
+        (int*) dominio,
+        5,
+        2,
+        imagem,
+        5,
+        caminhoNomeArquivoCsv
+    );
+*/
