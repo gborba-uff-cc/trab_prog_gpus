@@ -118,7 +118,7 @@ int resolverPvcTemperatura(
     size_t linhasCondCont,
     size_t colunasCondCont
 );
-void k_resolverPvcTempertura(
+__global__ void k_resolverPvcTempertura(
     // matriz bidimensional [n,2]
     const int *bufferConexoes,
     const size_t linhasConexoes,
@@ -143,12 +143,8 @@ void k_resolverPvcTempertura(
 cJSON *carregarJSON(const char *jsonFilePath)
 {
     FILE *fp;
-    errno_t fErro = fopen_s(
-        &fp,
-        jsonFilePath,
-        "rb"
-    );
-    if (fErro != 0) {
+    fp = fopen(jsonFilePath, "rb");
+    if (!fp) {
         return NULL;
     }
 
@@ -358,30 +354,27 @@ int salvarCsvSimulador2(
 
 
     FILE *f = NULL;
-    errno_t erro = 0;
-
-    erro = fopen_s(&f, caminhoNomeArquivo, "wb");
-    if (erro) {
-        fclose(f);
+    f = fopen(caminhoNomeArquivo, "wb");
+    if (!f) {
         return 4;
     }
 
     char linha[55] = {0};
 
+    int erro;
     fputs("iPos,jPos,Temperature\n", f);
     for (size_t i=0; i<linhasDominio; i++) {
         for (size_t j=0; j<sizeof(linha);j++) {
             linha[j] = '\0';
         }
-        erro = sprintf_s(
+        erro = sprintf(
             linha,
-            sizeof(linha),
             "%d,%d,%.15f\n",
             bufferDominio[i*colunasDominio],
             bufferDominio[i*colunasDominio+1],
             bufferImagem[i]
         );
-        if (erro < 1) {
+        if (erro < 0) {
             return 5;
         }
         fputs(linha, f);
@@ -423,12 +416,9 @@ int salvarJsonSimulador2(
     }
 
     FILE *f = NULL;
-    errno_t erro = 0;
+    f = fopen(caminhoNomeArquivo, "wb");
 
-    erro = fopen_s(&f, caminhoNomeArquivo, "wb");
-
-    if (erro) {
-        fclose(f);
+    if (!f) {
         return 5;
     }
 
@@ -476,15 +466,15 @@ void concatenarStrings(char **str, const char* const bufferStr1, const char* con
     size_t tamanhoBuffer = strlen(bufferStr1) + strlen(bufferStr2) + 1;
     char* const buffer = (char *) malloc(tamanhoBuffer);
 
-    strcpy_s(buffer, tamanhoBuffer, bufferStr1);
-    strcat_s(buffer, tamanhoBuffer, bufferStr2);
+    strcpy(buffer, bufferStr1);
+    strcat(buffer, bufferStr2);
 
     *str = buffer;
 }
 // resolve o problema do valor de contorno de temperatura bidimensional.
 int resolverPvcTemperatura(
-    float *resultado,
-    float *tamanhoResultado,
+    float **resultado,
+    size_t *tamanhoResultado,
     float h,
     float k,
     int *posicoesGrade,
@@ -500,7 +490,7 @@ int resolverPvcTemperatura(
     const float hkRatio = h/k;
     const float kCentro = 2*(hkRatio*hkRatio+1);
     const float kDireita = -1.0;
-    const float kEsquerda = kEsquerda;
+    const float kEsquerda = kDireita;
     const float kAbaixo = -(hkRatio*hkRatio);
     const float kAcima = kAbaixo;
     const float coeficientes_CentroDEBC[] = {
@@ -546,13 +536,13 @@ int resolverPvcTemperatura(
     cudaMemcpyAsync(
         d_conexoes,
         conexoes,
-        bytesCoeficientes,
+        bytesConexoes,
         cudaMemcpyHostToDevice
     );
     cudaMemcpyAsync(
         d_condicoesContorno,
         condicoesContorno,
-        bytesCoeficientes,
+        bytesCondCont,
         cudaMemcpyHostToDevice
     );
     cudaMemcpyAsync(
@@ -567,26 +557,31 @@ int resolverPvcTemperatura(
     // !SECTION
 
     // SECTION - prepara sistema de equacoes
-    size_t p1TamanhoProblema = linhasConexoes;
-    size_t p1TamanhoBloco = 32;
-    size_t p1NumeroBlocos = (p1TamanhoProblema+1)/p1TamanhoBloco-1;
+    size_t tamanhoProblema = linhasConexoes;
+    size_t tamanhoBloco = 32;
+    size_t numeroBlocos = (tamanhoProblema+1)/tamanhoBloco-1;
+    if (numeroBlocos) {
+        numeroBlocos = 1;
+    }
 
     cudaDeviceSynchronize();
-    k_resolverPvcTempertura<<<p1NumeroBlocos, p1TamanhoBloco>>>(
+    printf("chamando kernel com <<<%ld,%ld>>>\n",numeroBlocos,tamanhoBloco);
+    k_resolverPvcTempertura<<<numeroBlocos, tamanhoBloco>>>(
         d_conexoes, linhasConexoes, colunasConexoes,
         d_condicoesContorno, linhasCondCont, colunasCondCont,
         d_coeficientes_CentroDEBC, linhasCoeficientes,
         d_A, linhasA, colunasA,
         d_b, linhasB
     );
-    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
     // !SECTION
 
     // SECTION - soluciona sistema de equações
     // !SECTION
 
-    float *a = malloc(bytesA);
-    float *b = malloc(bytesB);
+    float *a = (float *) malloc(bytesA);
+    float *b = (float *) malloc(bytesB);
     if (b == NULL || a==NULL) {
         return 1;
     }
@@ -606,11 +601,15 @@ int resolverPvcTemperatura(
     cudaDeviceSynchronize();
 
     for (size_t i=0;i<linhasA;i++) {
-        for (size_t j=0;i<colunasA;j++) {
+        printf("[%ld]: ", i);
+        for (size_t j=0;j<colunasA;j++) {
             printf("%f ", a[i*colunasA + j]);
         }
-        puts("");
+        printf("%f\n", b[i]);
     }
+
+    *resultado = b;
+    *tamanhoResultado = linhasB;
 
     cudaFree(d_conexoes);
     cudaFree(d_condicoesContorno);
@@ -618,49 +617,56 @@ int resolverPvcTemperatura(
     cudaFree(d_A);
     cudaFree(d_b);
     free(a);
-    free(b);
+    // free(b);
     return 0;
 }
 // resolve o problema do valor de contorno de temperatura bidimensional.
 __global__ void k_resolverPvcTempertura(
-    // matriz bidimensional [n,2]
+    // matriz em forma undimensional
     const int *bufferConexoes,
     const size_t linhasConexoes,
     const size_t colunasConexoes,
-    //
+    // matriz em forma unidmensional
     const float *bufferCondCont,
     const size_t linhasCondCont,
     const size_t colunasCondCont,
-    //
+    // array
     const float *coeficientes_CDEBC,
     const size_t linhasCoeficientes,
-    // matriz bidimensional [n,n]
+    // matriz em forma unidimensional
     float *bufferA,
     const size_t linhasA,
     const size_t colunasA,
-    // array bidimensional [n]
+    // array
     float *bufferB,
     const size_t linhasB
 ) {
     const size_t idxB = threadIdx.x;
-    const size_t idxG = blockIdx.x + blockDim.x * threadIdx.x;
+    const size_t idxG = blockIdx.x * blockDim.x + idxB;
     const size_t idxLinha = idxG;
 
     if (idxG >= linhasA) {
         return;
     }
 
-    bufferA[idxG] = coeficientes_CDEBC[0];
+    const size_t iBaseBufferA = idxLinha*colunasA;
+    const size_t iBaseConexoes = idxLinha*colunasConexoes;
+    size_t iBaseCondCont = 0;
     size_t idxVizinho = 0;
+    float existeCondCont = 0;
+    bufferA[iBaseBufferA + idxLinha] = coeficientes_CDEBC[0];
     for (size_t numVizinho=1; numVizinho<linhasCoeficientes; numVizinho++) {
-        idxVizinho = bufferConexoes[idxLinha*colunasConexoes + (numVizinho-1)];
+        idxVizinho = bufferConexoes[iBaseConexoes + (numVizinho-1)];
         if (idxVizinho > 0) {
-            idxVizinho--;
-            if (bufferCondCont[idxVizinho*2 + 0] == 1) {
-                bufferB[idxG] += bufferCondCont[idxVizinho*2 + 1];
+            idxVizinho -= 1;
+            iBaseCondCont = idxVizinho*colunasCondCont;
+            existeCondCont = bufferCondCont[iBaseCondCont + 0];
+            printf("linha: %ld existeCondCont:%f\n", idxLinha, existeCondCont);
+            if (existeCondCont) {
+                bufferB[idxLinha] += bufferCondCont[iBaseCondCont + 1];
             }
             else {
-                bufferA[idxG*colunasA + idxVizinho] = coeficientes_CDEBC[numVizinho];
+                bufferA[iBaseBufferA + idxVizinho] = coeficientes_CDEBC[numVizinho];
             }
         }
     }
@@ -701,7 +707,8 @@ int main(
     size_t elementosResultado = 0;
 
     resolverPvcTemperatura(
-        resultado,
+        &resultado,
+        &elementosResultado,
         h, k,
         posicoesGrade, linhasPosicoesGrade, colunasPosicoesGrade,
         conexoes, linhasConexoes, colunasConexoes,
