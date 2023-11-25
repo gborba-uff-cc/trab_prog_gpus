@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
+#include "simulador_gpu_2.h"
 
-#include "cJSON.h"
+#include <device_launch_parameters.h>
+#include <cublas_v2.h>
+#include <cusolverDn.h>
 
 // =============================================================================
-# define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__, 0); }
 inline void gpuAssert(
     cudaError_t code,
     const char *file,
@@ -34,110 +34,6 @@ inline void gpuAssert(
 #define MAXIMO_BYTES_ARQUIVO_JSON 1000001
 #define MAXIMO_CARACTERES_BUFFER_ARQUIVO MAXIMO_BYTES_ARQUIVO_JSON / sizeof(TIPO_CARACTERE_ARQUIVO)
 
-
-cJSON *carregarJSON(
-    const char *jsonFilePath
-);
-int carregarParametros(
-    float *h,
-    float *k,
-    int   **posicoesGrade,
-    size_t *linhasPosicoesGrade,
-    size_t *colunassPosicoesGrade,
-    int   **conexoes,
-    size_t *linhasConexoes,
-    size_t *colunassConexoes,
-    float **condicoesContorno,
-    size_t *linhasContorno,
-    size_t *colunasContorno,
-    const cJSON *json
-);
-int descobrirTamanhoMatriz(
-    size_t *bufferNumeroLinhas,
-    size_t *bufferNumeroColunas,
-    cJSON *const matriz
-);
-int copiarMatrizIntJsonParaArray(
-    int *bufferArray,
-    cJSON *const matriz,
-    size_t matrizNumeroLinhas,
-    size_t matrizNumeroColunas
-);
-int copiarMatrizFloatJsonParaArray(
-    float *bufferArray,
-    cJSON *const matriz,
-    size_t matrizNumeroLinhas,
-    size_t matrizNumeroColunas
-);
-int salvarCsvSimulador2(
-    // matriz bidimensional
-    const int *bufferDominio,
-    const size_t linhasDominio,
-    const size_t colunasDominio,
-    // array
-    const float *bufferImagem,
-    const size_t colunasImagem,
-    const char* const caminhoNomeArquivo
-);
-int salvarJsonSimulador2(
-    // matriz bidimensional
-    const int *bufferDominio,
-    const size_t linhasDominio,
-    const size_t colunasDominio,
-    // array
-    const float *bufferImagem,
-    const size_t colunasImagem,
-    const char* const caminhoNomeArquivo
-);
-cJSON *gerarResultadoJsonSimulador2(
-    // matriz bidimensional
-    const int *bufferDominio,
-    const size_t linhasDominio,
-    const size_t colunasDominio,
-    // array
-    const float *bufferImagem,
-    const size_t colunasImagem
-);
-void concatenarStrings(
-    char **str,
-    const char* const bufferStr1,
-    const char* const bufferStr2
-);
-int resolverPvcTemperatura(
-    float *resultado,
-    float *tamanhoResultado,
-    float h,
-    float k,
-    int *posicoesGrade,
-    size_t linhasPosicoesGrade,
-    size_t colunasPosicoesGrade,
-    int *conexoes,
-    size_t linhasConexoes,
-    size_t colunasConexoes,
-    float *condicoesContorno,
-    size_t linhasCondCont,
-    size_t colunasCondCont
-);
-__global__ void k_resolverPvcTempertura(
-    // matriz bidimensional [n,2]
-    const int *bufferConexoes,
-    const size_t linhasConexoes,
-    const size_t colunasConexoes,
-    //
-    const float *bufferCondCont,
-    const size_t linhasCondCont,
-    const size_t colunasCondCont,
-    //
-    const float *coeficientes_CDEBC,
-    const size_t linhasCoeficientes,
-    // matriz bidimensional [n,n]
-    float *bufferA,
-    const size_t linhasA,
-    const size_t colunasA,
-    // array bidimensional [n]
-    float *bufferB,
-    const size_t linhasB
-);
 // =============================================================================
 
 cJSON *carregarJSON(const char *jsonFilePath)
@@ -473,17 +369,17 @@ void concatenarStrings(char **str, const char* const bufferStr1, const char* con
 }
 // resolve o problema do valor de contorno de temperatura bidimensional.
 int resolverPvcTemperatura(
-    float **resultado,
+    float **h_ptrResultado,
     size_t *tamanhoResultado,
     float h,
     float k,
-    int *posicoesGrade,
+    int *h_posicoesGrade,
     size_t linhasPosicoesGrade,
     size_t colunasPosicoesGrade,
-    int *conexoes,
+    int *h_conexoes,
     size_t linhasConexoes,
     size_t colunasConexoes,
-    float *condicoesContorno,
+    float *h_condicoesContorno,
     size_t linhasCondCont,
     size_t colunasCondCont
 ) {
@@ -535,13 +431,13 @@ int resolverPvcTemperatura(
 
     cudaMemcpyAsync(
         d_conexoes,
-        conexoes,
+        h_conexoes,
         bytesConexoes,
         cudaMemcpyHostToDevice
     );
     cudaMemcpyAsync(
         d_condicoesContorno,
-        condicoesContorno,
+        h_condicoesContorno,
         bytesCondCont,
         cudaMemcpyHostToDevice
     );
@@ -551,22 +447,15 @@ int resolverPvcTemperatura(
         bytesCoeficientes,
         cudaMemcpyHostToDevice
     );
-    // SECTION - REVIEW
-    cudaMemset(d_A, 0, bytesA);
-    cudaMemset(d_b, 0, bytesB);
-    // !SECTION
 
     // SECTION - prepara sistema de equacoes
     size_t tamanhoProblema = linhasConexoes;
     size_t tamanhoBloco = 32;
-    size_t numeroBlocos = (tamanhoProblema+1)/tamanhoBloco-1;
-    if (numeroBlocos) {
-        numeroBlocos = 1;
-    }
+    int numeroBlocos = (tamanhoProblema-1)/tamanhoBloco+1;
 
     cudaDeviceSynchronize();
-    printf("chamando kernel com <<<%ld,%ld>>>\n",numeroBlocos,tamanhoBloco);
-    k_resolverPvcTempertura<<<numeroBlocos, tamanhoBloco>>>(
+    printf("chamando kernel com <<<%d,%ld>>>\n",numeroBlocos,tamanhoBloco);
+    k_preencherSistemaEquacoes<<<numeroBlocos, tamanhoBloco>>>(
         d_conexoes, linhasConexoes, colunasConexoes,
         d_condicoesContorno, linhasCondCont, colunasCondCont,
         d_coeficientes_CentroDEBC, linhasCoeficientes,
@@ -575,53 +464,35 @@ int resolverPvcTemperatura(
     );
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
+
+    tamanhoProblema = linhasA*colunasA;
+    tamanhoBloco = 128;
+    numeroBlocos = (tamanhoProblema-1)/tamanhoBloco+1;
+    printf("chamando kernel com <<<%d,%ld>>>\n",numeroBlocos,tamanhoBloco);
+    k_imporCondicoesContorno<<<numeroBlocos, tamanhoBloco>>>(
+        d_A, linhasA, colunasA,
+        d_b, linhasB,
+        d_condicoesContorno, linhasCondCont, colunasCondCont
+    );
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
     // !SECTION
 
-    // SECTION - soluciona sistema de equações
-    // !SECTION
-
-    float *a = (float *) malloc(bytesA);
-    float *b = (float *) malloc(bytesB);
-    if (b == NULL || a==NULL) {
-        return 1;
-    }
-
-    cudaMemcpyAsync(
-        a,
-        d_A,
-        bytesA,
-        cudaMemcpyDeviceToHost
+    resolverSistemaEquacoes(
+        h_ptrResultado, tamanhoResultado,
+        d_A, linhasA, colunasA,
+        d_b, linhasB
     );
-    cudaMemcpyAsync(
-        b,
-        d_b,
-        bytesB,
-        cudaMemcpyDeviceToHost
-    );
-    cudaDeviceSynchronize();
-
-    for (size_t i=0;i<linhasA;i++) {
-        printf("[%ld]: ", i);
-        for (size_t j=0;j<colunasA;j++) {
-            printf("%f ", a[i*colunasA + j]);
-        }
-        printf("%f\n", b[i]);
-    }
-
-    *resultado = b;
-    *tamanhoResultado = linhasB;
 
     cudaFree(d_conexoes);
     cudaFree(d_condicoesContorno);
     cudaFree(d_coeficientes_CentroDEBC);
     cudaFree(d_A);
     cudaFree(d_b);
-    free(a);
-    // free(b);
     return 0;
 }
 // resolve o problema do valor de contorno de temperatura bidimensional.
-__global__ void k_resolverPvcTempertura(
+__global__ void k_preencherSistemaEquacoes(
     // matriz em forma undimensional
     const int *bufferConexoes,
     const size_t linhasConexoes,
@@ -661,7 +532,6 @@ __global__ void k_resolverPvcTempertura(
             idxVizinho -= 1;
             iBaseCondCont = idxVizinho*colunasCondCont;
             existeCondCont = bufferCondCont[iBaseCondCont + 0];
-            printf("linha: %ld existeCondCont:%f\n", idxLinha, existeCondCont);
             if (existeCondCont) {
                 bufferB[idxLinha] += bufferCondCont[iBaseCondCont + 1];
             }
@@ -673,12 +543,190 @@ __global__ void k_resolverPvcTempertura(
 
     return;
 }
+__global__ void k_imporCondicoesContorno(
+    float *bufferA,
+    const size_t linhasA,
+    const size_t colunasA,
+    float *bufferB,
+    const size_t linhasB,
+    const float *bufferCondCont,
+    const size_t linhasCondCont,
+    const size_t colunasCondCont
+) {
+    const size_t idxB = threadIdx.x;
+    const size_t idxG = blockIdx.x * blockDim.x + idxB;
+
+    if (idxG >= linhasA * colunasA) {
+        return;
+    }
+
+    size_t i = idxG / colunasA;
+    size_t j = idxG % colunasA;
+    size_t iBaseCondCont = i*colunasCondCont;
+
+    if (!bufferCondCont[iBaseCondCont + 0]) {
+        return;
+    }
+    if (i == j) {
+        bufferA[idxG] = 1.0;
+    }
+    else {
+        bufferA[idxG] = 0.0;
+    }
+    if (j == 0) {
+        bufferB[i] = bufferCondCont[iBaseCondCont + 1];
+    }
+}
+int resolverSistemaEquacoes(
+    float **h_ptrResultado,
+    size_t *linhasX,
+    float *d_bufferA,
+    const size_t linhasA,
+    const size_t colunasA,
+    float *d_bufferB,
+    const size_t linhasB
+) {
+// SECTION - transpoe a matriz (de row-major para column-major)
+    size_t bytesAT = sizeof(float)*linhasA*colunasA;
+    float *d_AT = NULL;
+    cudaMalloc(
+        (void **) &d_AT,
+        bytesAT
+    );
+    cudaMemset(d_AT, 0, bytesAT);
+
+    cublasHandle_t cublasHandle;
+    cublasCreate(&cublasHandle);
+
+    float alpha = 1.0;
+    float beta = 0.0;
+    // NOTE - muda buffer (matriz quadrada) de row-major para column-major;
+    cublasStatus_t status = cublasSgeam(
+        cublasHandle,
+        CUBLAS_OP_T, CUBLAS_OP_N,
+        linhasA, linhasA,
+        &alpha, d_bufferA, linhasA,
+        &beta, d_AT, linhasA,
+        d_AT, linhasA
+    );
+    cudaDeviceSynchronize();
+    if (status != CUBLAS_STATUS_SUCCESS) {
+        return 1;
+    }
+
+    cublasDestroy(cublasHandle);
+    cudaFree(d_bufferA);
+    d_bufferA = d_AT;
+// !SECTION
+
+// SECTION - tratando como matriz densa
+    // NOTE - fatoracao LU
+    cusolverDnHandle_t cusolverHandler;
+    cusolverDnCreate(&cusolverHandler);
+
+    cusolverDnParams_t parametros;
+    cusolverDnCreateParams(&parametros);
+
+    cusolverDnSetAdvOptions(parametros, CUSOLVERDN_GETRF, CUSOLVER_ALG_0);
+
+    size_t d_tamanhoWorkspace = 0;
+    size_t h_tamanhoWorkspace = 0;
+    void *d_workspace = NULL;
+    void *h_workspace = NULL;
+
+    cusolverDnXgetrf_bufferSize(
+        cusolverHandler, parametros, linhasA, colunasA,
+        CUDA_R_32F, d_bufferA, colunasA,
+        CUDA_R_32F, &d_tamanhoWorkspace, &h_tamanhoWorkspace
+    );
+
+    cudaMalloc((void **) &d_workspace, d_tamanhoWorkspace);
+    h_workspace = malloc(h_tamanhoWorkspace);
+    if (!h_workspace) {
+        cudaFree(d_workspace);
+        cusolverDnDestroyParams(parametros);
+        cusolverDnDestroy(cusolverHandler);
+        return 2;
+    }
+
+    size_t tamanhoIpiv = sizeof(int64_t)*linhasA;
+    int64_t *d_ipiv;
+    size_t tamanhoInformacao = sizeof(int);
+    int* d_informacao;
+    int h_informacao;
+    cudaMalloc((void **) &d_informacao, tamanhoInformacao);
+    cudaMalloc((void **) &d_ipiv, tamanhoIpiv);
+    cusolverDnXgetrf(
+        cusolverHandler, parametros, linhasA, colunasA,
+        CUDA_R_32F, d_bufferA, colunasA, d_ipiv, CUDA_R_32F,
+        d_workspace, d_tamanhoWorkspace,
+        h_workspace, h_tamanhoWorkspace,
+        d_informacao
+    );
+    cudaMemcpy(
+        &h_informacao, d_informacao, tamanhoInformacao, cudaMemcpyDeviceToHost
+    );
+    if (h_informacao < 0 || h_informacao > 0) {
+        // parametro na posicao (-1*info) está errado
+        int ret = 0;
+        if (h_informacao < 0) {
+            fprintf(stderr, "parametro na posicao %d está errado", -h_informacao);
+            ret = 3;
+        }
+        else {
+            fprintf(stderr, "U[,%d,%d]==0.0\n", h_informacao, h_informacao);
+            ret = 4;
+        }
+        cudaFree(d_workspace);
+        cudaFree(d_informacao);
+        cudaFree(d_ipiv);
+        cusolverDnDestroyParams(parametros);
+        cusolverDnDestroy(cusolverHandler);
+        return ret;
+    }
+
+    // NOTE - soluciona sistema
+    cusolverDnXgetrs(
+        cusolverHandler, parametros, CUBLAS_OP_N, linhasA, 1, /* nrhs */
+        CUDA_R_32F, d_bufferA, colunasA,
+        d_ipiv,
+        CUDA_R_32F, d_bufferB, linhasB,
+        d_informacao
+    );
+    cudaMemcpy(
+        &h_informacao, d_informacao, tamanhoInformacao, cudaMemcpyDeviceToHost
+    );
+    if (h_informacao < 0) {
+        printf("parametro na posicao %d está errado", -h_informacao);
+        cudaFree(d_workspace);
+        cudaFree(d_informacao);
+        cudaFree(d_ipiv);
+        // parametro na posicao (-1*info) está errado
+        cusolverDnDestroyParams(parametros);
+        cusolverDnDestroy(cusolverHandler);
+        return 5;
+    }
+
+    float *aux = (float *) malloc(sizeof(float)*linhasB);
+    cudaMemcpy(aux, d_bufferB, sizeof(float)*linhasB, cudaMemcpyDeviceToHost);
+    *h_ptrResultado = aux;
+    *linhasX = linhasB;
+
+    free(h_workspace);
+    cudaFree(d_workspace);
+    cudaFree(d_informacao);
+    cudaFree(d_ipiv);
+    cusolverDnDestroyParams(parametros);
+    cusolverDnDestroy(cusolverHandler);
+// !SECTION
+
+    return 0;
+}
 
 int main(
     int argc,
     char const *argv[]
-)
-{
+) {
     if (argc != 2) {
         puts(">>> This program take 1 argument.");
         puts(">>> Run again passing the path to an archive .json containing values to:\n");
