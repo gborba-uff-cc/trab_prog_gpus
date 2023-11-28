@@ -373,9 +373,6 @@ int resolverPvcTemperatura(
     size_t *tamanhoResultado,
     float h,
     float k,
-    int *h_posicoesGrade,
-    size_t linhasPosicoesGrade,
-    size_t colunasPosicoesGrade,
     int *h_conexoes,
     size_t linhasConexoes,
     size_t colunasConexoes,
@@ -454,7 +451,6 @@ int resolverPvcTemperatura(
     int numeroBlocos = (tamanhoProblema-1)/tamanhoBloco+1;
 
     cudaDeviceSynchronize();
-    printf("chamando kernel com <<<%d,%ld>>>\n",numeroBlocos,tamanhoBloco);
     k_preencherSistemaEquacoes<<<numeroBlocos, tamanhoBloco>>>(
         d_conexoes, linhasConexoes, colunasConexoes,
         d_condicoesContorno, linhasCondCont, colunasCondCont,
@@ -468,7 +464,6 @@ int resolverPvcTemperatura(
     tamanhoProblema = linhasA*colunasA;
     tamanhoBloco = 128;
     numeroBlocos = (tamanhoProblema-1)/tamanhoBloco+1;
-    printf("chamando kernel com <<<%d,%ld>>>\n",numeroBlocos,tamanhoBloco);
     k_imporCondicoesContorno<<<numeroBlocos, tamanhoBloco>>>(
         d_A, linhasA, colunasA,
         d_b, linhasB,
@@ -480,7 +475,7 @@ int resolverPvcTemperatura(
 
     resolverSistemaEquacoes(
         h_ptrResultado, tamanhoResultado,
-        d_A, linhasA, colunasA,
+        &d_A, linhasA, colunasA,
         d_b, linhasB
     );
 
@@ -491,24 +486,19 @@ int resolverPvcTemperatura(
     cudaFree(d_b);
     return 0;
 }
-// resolve o problema do valor de contorno de temperatura bidimensional.
+
 __global__ void k_preencherSistemaEquacoes(
-    // matriz em forma undimensional
     const int *bufferConexoes,
     const size_t linhasConexoes,
     const size_t colunasConexoes,
-    // matriz em forma unidmensional
     const float *bufferCondCont,
     const size_t linhasCondCont,
     const size_t colunasCondCont,
-    // array
     const float *coeficientes_CDEBC,
     const size_t linhasCoeficientes,
-    // matriz em forma unidimensional
     float *bufferA,
     const size_t linhasA,
     const size_t colunasA,
-    // array
     float *bufferB,
     const size_t linhasB
 ) {
@@ -580,7 +570,7 @@ __global__ void k_imporCondicoesContorno(
 int resolverSistemaEquacoes(
     float **h_ptrResultado,
     size_t *linhasX,
-    float *d_bufferA,
+    float **d_bufferA,
     const size_t linhasA,
     const size_t colunasA,
     float *d_bufferB,
@@ -588,6 +578,7 @@ int resolverSistemaEquacoes(
 ) {
 // SECTION - transpoe a matriz (de row-major para column-major)
     size_t bytesAT = sizeof(float)*linhasA*colunasA;
+    // tranposta da matriz A
     float *d_AT = NULL;
     cudaMalloc(
         (void **) &d_AT,
@@ -600,12 +591,12 @@ int resolverSistemaEquacoes(
 
     float alpha = 1.0;
     float beta = 0.0;
-    // NOTE - muda buffer (matriz quadrada) de row-major para column-major;
+    // NOTE - muda buffer de row-major para column-major;
     cublasStatus_t status = cublasSgeam(
         cublasHandle,
         CUBLAS_OP_T, CUBLAS_OP_N,
         linhasA, linhasA,
-        &alpha, d_bufferA, linhasA,
+        &alpha, *d_bufferA, linhasA,
         &beta, d_AT, linhasA,
         d_AT, linhasA
     );
@@ -615,8 +606,8 @@ int resolverSistemaEquacoes(
     }
 
     cublasDestroy(cublasHandle);
-    cudaFree(d_bufferA);
-    d_bufferA = d_AT;
+    cudaFree(*d_bufferA);
+    *d_bufferA = d_AT;
 // !SECTION
 
 // SECTION - tratando como matriz densa
@@ -636,7 +627,7 @@ int resolverSistemaEquacoes(
 
     cusolverDnXgetrf_bufferSize(
         cusolverHandler, parametros, linhasA, colunasA,
-        CUDA_R_32F, d_bufferA, colunasA,
+        CUDA_R_32F, d_AT, colunasA,
         CUDA_R_32F, &d_tamanhoWorkspace, &h_tamanhoWorkspace
     );
 
@@ -658,7 +649,7 @@ int resolverSistemaEquacoes(
     cudaMalloc((void **) &d_ipiv, tamanhoIpiv);
     cusolverDnXgetrf(
         cusolverHandler, parametros, linhasA, colunasA,
-        CUDA_R_32F, d_bufferA, colunasA, d_ipiv, CUDA_R_32F,
+        CUDA_R_32F, d_AT, colunasA, d_ipiv, CUDA_R_32F,
         d_workspace, d_tamanhoWorkspace,
         h_workspace, h_tamanhoWorkspace,
         d_informacao
@@ -667,14 +658,13 @@ int resolverSistemaEquacoes(
         &h_informacao, d_informacao, tamanhoInformacao, cudaMemcpyDeviceToHost
     );
     if (h_informacao < 0 || h_informacao > 0) {
-        // parametro na posicao (-1*info) está errado
         int ret = 0;
         if (h_informacao < 0) {
             fprintf(stderr, "parametro na posicao %d está errado", -h_informacao);
             ret = 3;
         }
         else {
-            fprintf(stderr, "U[,%d,%d]==0.0\n", h_informacao, h_informacao);
+            fprintf(stderr, "LU factorization failed, U[,%d,%d]==0.0\n", h_informacao, h_informacao);
             ret = 4;
         }
         cudaFree(d_workspace);
@@ -688,7 +678,7 @@ int resolverSistemaEquacoes(
     // NOTE - soluciona sistema
     cusolverDnXgetrs(
         cusolverHandler, parametros, CUBLAS_OP_N, linhasA, 1, /* nrhs */
-        CUDA_R_32F, d_bufferA, colunasA,
+        CUDA_R_32F, d_AT, colunasA,
         d_ipiv,
         CUDA_R_32F, d_bufferB, linhasB,
         d_informacao
@@ -701,7 +691,6 @@ int resolverSistemaEquacoes(
         cudaFree(d_workspace);
         cudaFree(d_informacao);
         cudaFree(d_ipiv);
-        // parametro na posicao (-1*info) está errado
         cusolverDnDestroyParams(parametros);
         cusolverDnDestroy(cusolverHandler);
         return 5;

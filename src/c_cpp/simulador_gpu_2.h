@@ -92,9 +92,6 @@ int resolverPvcTemperatura(
     size_t *tamanhoResultado,
     float h,
     float k,
-    int *h_posicoesGrade,
-    size_t linhasPosicoesGrade,
-    size_t colunasPosicoesGrade,
     int *h_conexoes,
     size_t linhasConexoes,
     size_t colunasConexoes,
@@ -104,22 +101,22 @@ int resolverPvcTemperatura(
 );
 
 __global__ void k_preencherSistemaEquacoes(
-    // matriz bidimensional [n,2]
+    // matriz [n][4] row-major
     const int *bufferConexoes,
     const size_t linhasConexoes,
     const size_t colunasConexoes,
-    //
+    // matriz [n][2] row-major
     const float *bufferCondCont,
     const size_t linhasCondCont,
     const size_t colunasCondCont,
-    //
+    // array de coeficientes para cinco posicoes
     const float *coeficientes_CDEBC,
     const size_t linhasCoeficientes,
-    // matriz bidimensional [n,n]
+    // array [n][n]
     float *bufferA,
     const size_t linhasA,
     const size_t colunasA,
-    // array bidimensional [n]
+    // array [n]
     float *bufferB,
     const size_t linhasB
 );
@@ -138,7 +135,7 @@ __global__ void k_imporCondicoesContorno(
 int resolverSistemaEquacoes(
     float **h_ptrResultado,
     size_t *linhasX,
-    float *d_bufferA,
+    float **d_bufferA,
     const size_t linhasA,
     const size_t colunasA,
     float *d_bufferB,
