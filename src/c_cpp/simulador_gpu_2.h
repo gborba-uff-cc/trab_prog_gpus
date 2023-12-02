@@ -10,9 +10,6 @@ Calculo de PVC para problema de distribuicao de calor em uma "chapa"
 #include "cJSON.h"
 
 // =============================================================================
-# define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__, 0); }
-
-// =============================================================================
 int carregarParametros(
     float *h,
     float *k,

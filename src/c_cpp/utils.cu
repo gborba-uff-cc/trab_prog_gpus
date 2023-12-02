@@ -7,7 +7,6 @@
 #define MAXIMO_BYTES_ARQUIVO_JSON 1000001
 #define MAXIMO_CARACTERES_BUFFER_ARQUIVO MAXIMO_BYTES_ARQUIVO_JSON / sizeof(TIPO_CARACTERE_ARQUIVO)
 
-// =============================================================================
 cJSON *carregarJSON(
     const char *jsonFilePath
 ) {
