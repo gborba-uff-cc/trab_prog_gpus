@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "jsonUtil.h"
+#include "utils.h"
 
 // =============================================================================
 #define TIPO_CARACTERE_ARQUIVO char
@@ -115,4 +115,14 @@ int copiarMatrizFloatJsonParaArray(
         l++;
     }
     return 0;
+}
+
+void concatenarStrings(char **str, const char* const bufferStr1, const char* const bufferStr2) {
+    size_t tamanhoBuffer = strlen(bufferStr1) + strlen(bufferStr2) + 1;
+    char* const buffer = (char *) malloc(tamanhoBuffer);
+
+    strcpy(buffer, bufferStr1);
+    strcat(buffer, bufferStr2);
+
+    *str = buffer;
 }

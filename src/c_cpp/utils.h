@@ -2,7 +2,7 @@
 #define JSON_UTIL_H
 
 /*
-funçoes sobre json que são independentes do simulador
+funcoes independentes da logica do simulador
 */
 
 #include "cJSON.h"
@@ -30,6 +30,12 @@ int copiarMatrizFloatJsonParaArray(
     cJSON *const matriz,
     size_t matrizNumeroLinhas,
     size_t matrizNumeroColunas
+);
+
+void concatenarStrings(
+    char **str,
+    const char* const bufferStr1,
+    const char* const bufferStr2
 );
 
 #endif

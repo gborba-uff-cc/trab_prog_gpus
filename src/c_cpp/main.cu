@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "jsonUtil.h"
+#include "utils.h"
 #include "simulador_gpu_2.h"
 
 

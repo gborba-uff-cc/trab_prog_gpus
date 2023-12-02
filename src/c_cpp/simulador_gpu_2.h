@@ -60,12 +60,6 @@ cJSON *gerarResultadoJsonSimulador2(
     const size_t colunasImagem
 );
 
-void concatenarStrings(
-    char **str,
-    const char* const bufferStr1,
-    const char* const bufferStr2
-);
-
 int resolverPvcTemperatura(
     float **h_ptrResultado,
     size_t *tamanhoResultado,

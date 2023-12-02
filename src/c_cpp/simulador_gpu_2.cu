@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "jsonUtil.h"
+#include "utils.h"
 #include "simulador_gpu_2.h"
 
 #include <device_launch_parameters.h>
@@ -244,15 +244,7 @@ cJSON *gerarResultadoJsonSimulador2(
 
     return resultado;
 }
-void concatenarStrings(char **str, const char* const bufferStr1, const char* const bufferStr2) {
-    size_t tamanhoBuffer = strlen(bufferStr1) + strlen(bufferStr2) + 1;
-    char* const buffer = (char *) malloc(tamanhoBuffer);
 
-    strcpy(buffer, bufferStr1);
-    strcat(buffer, bufferStr2);
-
-    *str = buffer;
-}
 // resolve o problema do valor de contorno de temperatura bidimensional.
 int resolverPvcTemperatura(
     float **h_ptrResultado,
