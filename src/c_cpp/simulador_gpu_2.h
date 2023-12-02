@@ -1,6 +1,10 @@
 #ifndef SIMULADOR_GPU_2_H
 #define SIMULADOR_GPU_2_H
 
+/*
+Calculo de PVC para problema de distribuicao de calor em uma "chapa"
+*/
+
 #include <cuda_runtime.h>
 
 #include "cJSON.h"
@@ -9,11 +13,6 @@
 # define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__, 0); }
 
 // =============================================================================
-
-cJSON *carregarJSON(
-    const char *jsonFilePath
-);
-
 int carregarParametros(
     float *h,
     float *k,
@@ -27,26 +26,6 @@ int carregarParametros(
     size_t *linhasContorno,
     size_t *colunasContorno,
     const cJSON *json
-);
-
-int descobrirTamanhoMatriz(
-    size_t *bufferNumeroLinhas,
-    size_t *bufferNumeroColunas,
-    cJSON *const matriz
-);
-
-int copiarMatrizIntJsonParaArray(
-    int *bufferArray,
-    cJSON *const matriz,
-    size_t matrizNumeroLinhas,
-    size_t matrizNumeroColunas
-);
-
-int copiarMatrizFloatJsonParaArray(
-    float *bufferArray,
-    cJSON *const matriz,
-    size_t matrizNumeroLinhas,
-    size_t matrizNumeroColunas
 );
 
 int salvarCsvSimulador2(
