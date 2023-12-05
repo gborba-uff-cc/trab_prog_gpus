@@ -116,6 +116,46 @@ int copiarMatrizFloatJsonParaArray(
     return 0;
 }
 
+void copiarColunasMatrizJsonParaArrays_int(
+    int **buffersArrays,
+    cJSON *const matriz,
+    size_t matrizNumeroLinhas,
+    size_t matrizNumeroColunas
+) {
+    cJSON *linha = NULL, *coluna = NULL;
+    size_t l = 0, c = 0;
+
+    cJSON_ArrayForEach(linha, matriz) {
+        c = 0;
+        cJSON_ArrayForEach(coluna, linha) {
+            buffersArrays[c][l] = (int) cJSON_GetNumberValue(coluna);
+            c++;
+        }
+        l++;
+    }
+    return;
+}
+
+void copiarColunasMatrizJsonParaArrays_float(
+    float **buffersArrays,
+    cJSON *const matriz,
+    size_t matrizNumeroLinhas,
+    size_t matrizNumeroColunas
+) {
+    cJSON *linha = NULL, *coluna = NULL;
+    size_t l = 0, c = 0;
+
+    cJSON_ArrayForEach(linha, matriz) {
+        c = 0;
+        cJSON_ArrayForEach(coluna, linha) {
+            buffersArrays[c][l] = (float) cJSON_GetNumberValue(coluna);
+            c++;
+        }
+        l++;
+    }
+    return;
+}
+
 void concatenarStrings(char **str, const char* const bufferStr1, const char* const bufferStr2) {
     size_t tamanhoBuffer = strlen(bufferStr1) + strlen(bufferStr2) + 1;
     char* const buffer = (char *) malloc(tamanhoBuffer);

@@ -54,6 +54,20 @@ int copiarMatrizFloatJsonParaArray(
     size_t matrizNumeroColunas
 );
 
+void copiarColunasMatrizJsonParaArrays_int(
+    int **buffersArrays,
+    cJSON *const matriz,
+    size_t matrizNumeroLinhas,
+    size_t matrizNumeroColunas
+);
+
+void copiarColunasMatrizJsonParaArrays_float(
+    float **buffersArrays,
+    cJSON *const matriz,
+    size_t matrizNumeroLinhas,
+    size_t matrizNumeroColunas
+);
+
 void concatenarStrings(
     char **str,
     const char* const bufferStr1,
