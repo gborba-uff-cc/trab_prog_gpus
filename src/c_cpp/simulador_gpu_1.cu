@@ -79,7 +79,7 @@ int executaSimulador1(
 		".json"
 	);
 
-	salvarJsonSimulador1(resultadoY, elementosResultado, caminhoNomeArquivoJson);
+	salvarJsonSimulador1(resultadoX, elementosResultado, caminhoNomeArquivoJson);
 
 	free(resultadoX);
 	free(resultadoY);
