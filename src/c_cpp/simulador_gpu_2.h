@@ -10,7 +10,11 @@ Calculo de PVC para problema de distribuicao de calor em uma "chapa"
 #include "cJSON.h"
 
 // =============================================================================
-int carregarParametros(
+int executaSimulador2(
+	const char * const caminhoArquivoEntrada
+);
+
+int carregarParametrosSimulador2(
     float *h,
     float *k,
     int   **posicoesGrade,
