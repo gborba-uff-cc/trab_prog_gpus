@@ -11,7 +11,8 @@ Calculo de PVC para problema de distribuicao de calor em uma "chapa"
 
 // =============================================================================
 int executaSimulador2(
-	const char * const caminhoArquivoEntrada
+	const char * const caminhoArquivoEntrada,
+	const char * const caminhoArquivoSaida
 );
 
 int carregarParametrosSimulador2(

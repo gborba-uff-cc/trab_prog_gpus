@@ -11,7 +11,8 @@ Calculo de PVI para segunda lei de Newton
 
 // =============================================================================
 int executaSimulador1(
-	const char * const caminhoArquivoEntrada
+	const char * const caminhoArquivoEntrada,
+	const char * const caminhoArquivoSaida
 );
 
 int carregarParametrosSimulador1(

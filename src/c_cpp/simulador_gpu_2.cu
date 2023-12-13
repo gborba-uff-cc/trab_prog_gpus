@@ -11,7 +11,8 @@
 
 // =============================================================================
 int executaSimulador2(
-	const char * const caminhoArquivoEntrada
+	const char * const caminhoArquivoEntrada,
+	const char * const caminhoArquivoSaida
 ) {
 	cJSON *json = NULL;
 	json = carregarJSON(caminhoArquivoEntrada);
@@ -41,21 +42,17 @@ int executaSimulador2(
 		condicoesContorno, linhasCondCont, colunasCondCont
 	);
 
-	char *stringHorario = NULL;
-	char *caminhoNomeArquivo = NULL;
 	char *caminhoNomeArquivoJson = NULL;
 	char *caminhoNomeArquivoCsv = NULL;
 
-	dateTimeAsString(&stringHorario);
-	concatenarStrings(&caminhoNomeArquivo, ".\\sim1ConducaoTermica_", stringHorario);
 	concatenarStrings(
 		&caminhoNomeArquivoJson,
-		caminhoNomeArquivo,
+		caminhoArquivoSaida,
 		".json"
 	);
 	concatenarStrings(
 		&caminhoNomeArquivoCsv,
-		caminhoNomeArquivo,
+		caminhoArquivoSaida,
 		".csv"
 	);
 
@@ -82,8 +79,6 @@ int executaSimulador2(
 	free(condicoesContorno);
 	free(resultado);
 
-	free(stringHorario);
-	free(caminhoNomeArquivo);
 	free(caminhoNomeArquivoJson);
 	free(caminhoNomeArquivoCsv);
 	return 0;

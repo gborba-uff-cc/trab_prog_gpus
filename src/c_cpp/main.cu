@@ -56,23 +56,37 @@ int main(
 
 	const char *idSimuladorSelecionado = argv[1];
 	const char *caminhoArquivoEntrada = argv[2];
-	// unsigned char numeroSimuladorSelecionado = 0;
+	char *caminhoArquivoSaida = NULL;
+	char *stringHorario = NULL;
+	char *caminhoNomeArquivo = NULL;
 
-	// a string deve iniciar com --
-	if (strlen(idSimuladorSelecionado) < 3) {
-		return;
+	if (argc > 3) {
+		// copia o caminho passado
+		concatenarStrings(&caminhoArquivoSaida, argv[3], "");
 	}
+	dateTimeAsString(&stringHorario);
+
 	int falha = 0;
-	if (strcasecmp(&idSimuladorSelecionado[2], "pvi")) {
-		falha = executaSimulador1(caminhoArquivoEntrada);
+	if (strcasecmp(idSimuladorSelecionado, "pvi") == 0) {
+		if (!caminhoArquivoSaida) {
+			concatenarStrings(&caminhoArquivoSaida, ".\\sim1_2LeiNewton_", stringHorario);
+		}
+		falha = executaSimulador1(caminhoArquivoEntrada, caminhoArquivoSaida);
 	}
-	else if (strcasecmp(&idSimuladorSelecionado[2], "pvc")) {
-		falha = executaSimulador2(caminhoArquivoEntrada);
+	else if (strcasecmp(idSimuladorSelecionado, "pvc") == 0) {
+		if (!caminhoArquivoSaida) {
+			concatenarStrings(&caminhoNomeArquivo, ".\\sim2_conducaoTermica_", stringHorario);
+		}
+		falha = executaSimulador2(caminhoArquivoEntrada, caminhoArquivoSaida);
 	}
 	else {
 		fprintf(stderr, "O simulador requisitado não foi encontrado");
 		falha = 1;
 	}
+
+	free(caminhoArquivoSaida);
+	free(stringHorario);
+	free(caminhoNomeArquivo);
 
 	return falha;
 }

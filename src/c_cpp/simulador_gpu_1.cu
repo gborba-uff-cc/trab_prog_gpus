@@ -9,7 +9,8 @@
 
 // =============================================================================
 int executaSimulador1(
-	const char * const caminhoArquivoEntrada
+	const char * const caminhoArquivoEntrada,
+	const char * const caminhoArquivoSaida
 ) {
 	size_t numeroElementos = 0;
 	size_t numeroPassos = 0;
@@ -67,15 +68,11 @@ int executaSimulador1(
 	free(restricoesY);
 	free(conexoes);
 
-	char *stringHorario = NULL;
-	char *caminhoNomeArquivo = NULL;
 	char *caminhoNomeArquivoJson = NULL;
 
-	dateTimeAsString(&stringHorario);
-	concatenarStrings(&caminhoNomeArquivo, ".\\sim2LeiNewton_", stringHorario);
 	concatenarStrings(
 		&caminhoNomeArquivoJson,
-		caminhoNomeArquivo,
+		caminhoArquivoSaida,
 		".json"
 	);
 
@@ -84,8 +81,6 @@ int executaSimulador1(
 	free(resultadoX);
 	free(resultadoY);
 
-	free(stringHorario);
-	free(caminhoNomeArquivo);
 	free(caminhoNomeArquivoJson);
 
 	return 0;
