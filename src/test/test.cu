@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#include "../c_cpp/utils.h"
+#include "../c_cpp/simulador_gpu_1.h"
 #include "../c_cpp/simulador_gpu_2.h"
 
 // =============================================================================
@@ -14,6 +16,8 @@ void calculaErro(
 	double maiorErro = 0.0;
 	double aux = 0.0;
 	for (size_t i = 0; i<nElementos; i++) {
+		// STUB -
+		//fprintf(stderr, "[%ld]: (esperado: %f) - (resultado: %f) = %f;\n", i, esperado[i], resultado[i], esperado[i]-resultado[i]);
 		aux = esperado[i]-resultado[i];
 		if (aux < 0) aux *= -1;
 		if (maiorErro < aux) maiorErro = aux;
@@ -24,6 +28,11 @@ void calculaErro(
 	return;
 }
 
+void mostrarResultado(int resultadoTeste) {
+	if (!resultadoTeste) printf("[OK]");
+	else printf("[FALHOU]");
+	return;
+}
 // =============================================================================
 int teste_resolverSistemaEquacoes() {
 	float esperado[3] = {-0.3333, 0.6667, 0.0};
@@ -42,7 +51,7 @@ int teste_resolverSistemaEquacoes() {
 	cudaMemcpyAsync(d_A, h_A, bytesA, cudaMemcpyHostToDevice);
 	cudaMemcpyAsync(d_b, h_b, bytesB, cudaMemcpyHostToDevice);
 	cudaDeviceSynchronize();
-	resolverSistemaEquacoes(
+	int falha = resolverSistemaEquacoes(
 		&h_x, &linhasX,
 		&d_A, linhasA, colunasA,
 		d_b, linhasB
@@ -50,7 +59,27 @@ int teste_resolverSistemaEquacoes() {
 
 	double erro = 0.0, maiorErro = 0.0;
 	calculaErro(&erro, &maiorErro, esperado, h_x, linhasX);
-	return erro < 0.005 ? 0 : 1;
+	free(h_x);
+	cudaFree(d_A);
+	cudaFree(d_b);
+
+	if (falha) {
+		fprintf(
+			stderr,
+			"teste_resolverSistemaEquacoes: falhou com o codigo: %d\n",
+			falha
+		);
+		return falha;
+	}
+	if (maiorErro > 0.0015) {
+		fprintf(
+			stderr,
+			"teste_resolverSistemaEquacoes: maior erro=%f, erro acumulado=%f\n",
+			maiorErro, erro
+		);
+		return 1;
+	}
+	return 0;
 }
 
 int teste_resolverPvcTemperatura_1() {
@@ -116,7 +145,7 @@ int teste_resolverPvcTemperatura_1() {
 	float *resultado = NULL;
 	size_t linhasResultado = 0;
 
-	resolverPvcTemperatura(
+	int falha = resolverPvcTemperatura(
 		&resultado,
 		&linhasResultado,
 		h, k,
@@ -126,8 +155,25 @@ int teste_resolverPvcTemperatura_1() {
 
 	double erro = 0.0, maiorErro = 0.0;
 	calculaErro(&erro, &maiorErro, esperado, resultado, linhasResultado);
-	// printf("erro acumulado: %f, maior erro: %f\n",erro, maiorErro);
-	return erro < 0.005*linhasResultado ? 0 : 1;
+	free(resultado);
+
+	if (falha) {
+		fprintf(
+			stderr,
+			"teste_resolverPvcTemperatura_1: falhou com o codigo: %d\n",
+			falha
+		);
+		return falha;
+	}
+	if (maiorErro > 0.0015) {
+		fprintf(
+			stderr,
+			"teste_resolverPvcTemperatura_1: maior erro=%f, erro acumulado=%f\n",
+			maiorErro, erro
+		);
+		return 1;
+	}
+	return 0;
 }
 
 int teste_resolverPvcTemperatura_2() {
@@ -485,7 +531,7 @@ int teste_resolverPvcTemperatura_2() {
 	float *resultado = NULL;
 	size_t linhasResultado = 0;
 
-	resolverPvcTemperatura(
+	int falha = resolverPvcTemperatura(
 		&resultado,
 		&linhasResultado,
 		h, k,
@@ -495,10 +541,285 @@ int teste_resolverPvcTemperatura_2() {
 
 	double erro = 0.0, maiorErro = 0.0;
 	calculaErro(&erro, &maiorErro, esperado, resultado, linhasResultado);
-	// printf("erro acumulado: %f, maior erro: %f\n",erro, maiorErro);
-	return erro < 0.005*linhasResultado ? 0 : 1;
+	free(resultado);
+
+	if (falha) {
+		fprintf(
+			stderr,
+			"teste_resolverPvcTemperatura_2: falhou com o codigo: %d\n",
+			falha
+		);
+		return falha;
+	}
+	if (maiorErro > 0.0015) {
+		fprintf(
+			stderr,
+			"teste_resolverPvcTemperatura_2: maior erro=%f, erro acumulado=%f\n",
+			maiorErro, erro
+		);
+		return 1;
+	}
+	return 0;
 }
 
+int teste_carregarParametros1() {
+	size_t numeroElementos = 0;
+	float *x0 = NULL;
+	float *y0 = NULL;
+	float dSpringX = 0;
+	float dSpringY = 0;
+	float tamanhoPasso = 0;
+	size_t numeroPassos = 0;
+	float massa = 0;
+	float constanteElastica = 0;
+	float *forcasExternasX = NULL;
+	float *forcasExternasY = NULL;
+	int *restrictedX = NULL;
+	int *restrictedY = NULL;
+	int *conexoes = NULL;
+	size_t colunasConexoes = 0;
+
+	const char *nomeArquivoJson = "./testeParametrosSimulador1.json";
+
+	cJSON *json = NULL;
+	json = carregarJSON(nomeArquivoJson);
+
+	int falha = carregarParametrosSimulador1(
+		&numeroElementos,
+		&numeroPassos,
+		&tamanhoPasso,
+		&x0,
+		&y0,
+		&dSpringX,
+		&dSpringY,
+		&massa,
+		&constanteElastica,
+		&forcasExternasX,
+		&forcasExternasY,
+		&restrictedX,
+		&restrictedY,
+		&conexoes,
+		&colunasConexoes,
+		json
+	);
+
+	cJSON_Delete(json);
+	free(x0);
+	free(y0);
+	free(forcasExternasX);
+	free(forcasExternasY);
+	free(restrictedX);
+	free(restrictedY);
+	free(conexoes);
+/*
+	printf("numeroElementos: %ld\n", numeroElementos);
+	printf("*x0:\n");
+	for (size_t i=0; i<numeroElementos; i++) {
+		printf("%f ", x0[i]);
+		if (i%10 == 9) puts("");
+	}
+	puts("");
+	printf("*y0:\n");
+	for (size_t i=0; i<numeroElementos; i++) {
+		printf("%f ", y0[i]);
+		if (i%10 == 9) puts("");
+	}
+	puts("");
+	printf("dSpringX: %f\n", dSpringX);
+	printf("dSpringY: %f\n", dSpringY);
+	printf("tamanhoPasso: %f\n", tamanhoPasso);
+	printf("numeroPassos: %ld\n", numeroPassos);
+	printf("massa: %f\n", massa);
+	printf("constanteElastica: %f\n", constanteElastica);
+	printf("*forcasExternasX:\n");
+	for (size_t i=0; i<numeroElementos; i++) {
+		printf("%f ", forcasExternasX[i]);
+		if (i%10 == 9) puts("");
+	}
+	puts("");
+	printf("*forcasExternasY:\n");
+	for (size_t i=0; i<numeroElementos; i++) {
+		printf("%f ", forcasExternasY[i]);
+		if (i%10 == 9) puts("");
+	}
+	puts("");
+	printf("*restrictedX:\n");
+	for (size_t i=0; i<numeroElementos; i++) {
+		printf("%d ", restrictedX[i]);
+		if (i%10 == 9) puts("");
+	}
+	puts("");
+	printf("*restrictedY:\n");
+	for (size_t i=0; i<numeroElementos; i++) {
+		printf("%d ", restrictedY[i]);
+		if (i%10 == 9) puts("");
+	}
+	puts("");
+	printf("colunasConexoes: %ld\n", colunasConexoes);
+	printf("*conexoes:\n");
+	for (size_t i=0; i<numeroElementos*colunasConexoes; i++) {
+		printf("%i ", conexoes[i]);
+		if (i%5 == 4) puts("");
+	}
+	puts("");
+*/
+	if (falha) {
+		fprintf(
+			stderr,
+			"teste_carregarParametros1: falhou com o codigo: %d\n",
+			falha
+		);
+	}
+	return falha;
+}
+
+int teste_resolverPvi2Newton()
+{
+	float esperado[] = {
+		-0.000125,-0.0004343750000313946,-0.000800156250044239,-0.001148310546948437,-0.0014840202149116522,-0.0018291065405781808,-0.0021795282365067977,-0.0025237937937392305,-0.002865310103074819,-0.0032113012577134727,
+		-0.003558789506932925,-0.0039028298073738484,-0.0042460778486138225,-0.004592080987369485,-0.004938441595752607,-0.005282547941936115,-0.005626581330042938,-0.005972488230467006,-0.006318273548068559,-0.006662464147352408,
+		-0.007006706266378556,-0.00735106042681255,-0.0076898236043573135,-0.008010225995690347,-0.008286458877810786,-0.008471647800178884,-0.008505064276056115,-0.008343244805187621,-0.007998112563248979,-0.007549489054189704,
+		-0.007109187501402486,-0.006750602456290151,-0.0064601398843039965,-0.006163933517218792,-0.005811189971945649,-0.005424987289978388,-0.005062878145538035,-0.004740896575621916,-0.004420265806907052,-0.004067772115513433,
+		-0.0037000437443559216,-0.0033522691251400526,-0.0030248659036621727,-0.002688134241438261,-0.002331102486192547,-0.0019758349362089386,-0.001639520564851038,-0.0013101236714097107,-0.0009745406020216459,-0.0006517194193257562,
+		-0.00038055740167177815,-0.00019076931174640614,-0.00010692160936218746,-0.00016734386759193712,-0.00040514160263924604,-0.0008017890078063476,-0.0012776366522216438,-0.0017377760698815612,-0.0021234729943756456,-0.0024300863989537894,
+		-0.002699607577381868,-0.002996087796294972,-0.003358732096310774,-0.003762588782468413,-0.004141458730710213,-0.00446228281975462,-0.004761655014426396,-0.005095675895516536,-0.005470448624141796,-0.005842883052331872,
+		-0.006180902316971214,-0.0064988953028272374,-0.006830593628716487,-0.007183637083587629,-0.007530401199991135,-0.007837236025052735,-0.008091728624514363,-0.008293973632445134,-0.008422880511110667,-0.008425906930310138,
+		-0.008257704850625037,-0.00792652691923539,-0.007490780315552035,-0.007016220229497327,-0.006554222106179003,-0.006151183383740295,-0.00583754207317927,-0.005588087685145416,-0.00532225514610571,-0.004975867001017071,
+		-0.004565563314152122,-0.004163127835471591,-0.0038155050437821453,-0.003508961044157935,-0.0032012044897051406,-0.002863728100699752,-0.0024956933836857683,-0.002120254009021245,-0.001770282703979241,-0.001459124346658321
+	};
+
+	const size_t numeroElementos = 100;
+	float x0[] = {
+		-800.7850834151129,-800.7850834151129,-800.7850834151129,-800.7850834151129,-800.7850834151129,-800.7850834151129,-800.7850834151129,-800.7850834151129,-800.7850834151129,-800.7850834151129,
+		-659.4700686947989,-659.4700686947989,-659.4700686947989,-659.4700686947989,-659.4700686947989,-659.4700686947989,-659.4700686947989,-659.4700686947989,-659.4700686947989,-659.4700686947989,
+		-518.1550539744849,-518.1550539744849,-518.1550539744849,-518.1550539744849,-518.1550539744849,-518.1550539744849,-518.1550539744849,-518.1550539744849,-518.1550539744849,-518.1550539744849,
+		-376.84003925417073,-376.84003925417073,-376.84003925417073,-376.84003925417073,-376.84003925417073,-376.84003925417073,-376.84003925417073,-376.84003925417073,-376.84003925417073,-376.84003925417073,
+		-235.5250245338567,-235.5250245338567,-235.5250245338567,-235.5250245338567,-235.5250245338567,-235.5250245338567,-235.5250245338567,-235.5250245338567,-235.5250245338567,-235.5250245338567,
+		-94.21000981354268,-94.21000981354268,-94.21000981354268,-94.21000981354268,-94.21000981354268,-94.21000981354268,-94.21000981354268,-94.21000981354268,-94.21000981354268,-94.21000981354268,
+		47.105004906771455,47.105004906771455,47.105004906771455,47.105004906771455,47.105004906771455,47.105004906771455,47.105004906771455,47.105004906771455,47.105004906771455,47.105004906771455,
+		188.42001962708548,188.42001962708548,188.42001962708548,188.42001962708548,188.42001962708548,188.42001962708548,188.42001962708548,188.42001962708548,188.42001962708548,188.42001962708548,
+		329.7350343473995,329.7350343473995,329.7350343473995,329.7350343473995,329.7350343473995,329.7350343473995,329.7350343473995,329.7350343473995,329.7350343473995,329.7350343473995,
+		471.05004906771364,471.05004906771364,471.05004906771364,471.05004906771364,471.05004906771364,471.05004906771364,471.05004906771364,471.05004906771364,471.05004906771364,471.05004906771364
+	};
+	float y0[] = {
+		-550.53974484789,-518.5475956820411,-486.55544651619226,-454.5632973503434,-422.5711481844945,-390.5789990186457,-358.58684985279683,-326.59470068694793,-294.6025515210991,-262.61040235525024,
+		-550.53974484789,-518.5475956820411,-486.55544651619226,-454.5632973503434,-422.5711481844945,-390.5789990186457,-358.58684985279683,-326.59470068694793,-294.6025515210991,-262.61040235525024,
+		-550.53974484789,-518.5475956820411,-486.55544651619226,-454.5632973503434,-422.5711481844945,-390.5789990186457,-358.58684985279683,-326.59470068694793,-294.6025515210991,-262.61040235525024,
+		-550.53974484789,-518.5475956820411,-486.55544651619226,-454.5632973503434,-422.5711481844945,-390.5789990186457,-358.58684985279683,-326.59470068694793,-294.6025515210991,-262.61040235525024,
+		-550.53974484789,-518.5475956820411,-486.55544651619226,-454.5632973503434,-422.5711481844945,-390.5789990186457,-358.58684985279683,-326.59470068694793,-294.6025515210991,-262.61040235525024,
+		-550.53974484789,-518.5475956820411,-486.55544651619226,-454.5632973503434,-422.5711481844945,-390.5789990186457,-358.58684985279683,-326.59470068694793,-294.6025515210991,-262.61040235525024,
+		-550.53974484789,-518.5475956820411,-486.55544651619226,-454.5632973503434,-422.5711481844945,-390.5789990186457,-358.58684985279683,-326.59470068694793,-294.6025515210991,-262.61040235525024,
+		-550.53974484789,-518.5475956820411,-486.55544651619226,-454.5632973503434,-422.5711481844945,-390.5789990186457,-358.58684985279683,-326.59470068694793,-294.6025515210991,-262.61040235525024,
+		-550.53974484789,-518.5475956820411,-486.55544651619226,-454.5632973503434,-422.5711481844945,-390.5789990186457,-358.58684985279683,-326.59470068694793,-294.6025515210991,-262.61040235525024,
+		-550.53974484789,-518.5475956820411,-486.55544651619226,-454.5632973503434,-422.5711481844945,-390.5789990186457,-358.58684985279683,-326.59470068694793,-294.6025515210991,-262.61040235525024
+	};
+	const float dSpringX = 70.65750736015703;
+	const float dSpringY = 15.996074582924432;
+	const float tamanhoPasso = 0.0005;
+	const size_t numeroPassos = 100;
+	const float massa = 1.0;
+	const float constanteElastica = 2100000.0;
+	float forcasExternasX[] = {
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		-1000.0,-1000.0,-1000.0,-1000.0,-1000.0,-1000.0,-1000.0,-1000.0,-1000.0,-1000.0
+	};
+	float forcasExternasY[] = {
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
+		0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+	};
+	int restricoesX[] = {
+		1,1,1,1,1,1,1,1,1,1,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0
+	};
+	int restricoesY[] = {
+		1,1,1,1,1,1,1,1,1,1,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0,
+		0,0,0,0,0,0,0,0,0,0
+	};
+	const size_t colunasConexoes = 5;
+	int conexoes[] = {
+		2,2,11,0,0,3,1,3,12,0,3,2,4,13,0,3,3,5,14,0,3,4,6,15,0,3,5,7,16,0,3,6,8,17,0,3,7,9,18,0,3,8,10,19,0,2,9,20,0,0,
+		3,1,12,21,0,4,2,11,13,22,4,3,12,14,23,4,4,13,15,24,4,5,14,16,25,4,6,15,17,26,4,7,16,18,27,4,8,17,19,28,4,9,18,20,29,3,10,19,30,0,
+		3,11,22,31,0,4,12,21,23,32,4,13,22,24,33,4,14,23,25,34,4,15,24,26,35,4,16,25,27,36,4,17,26,28,37,4,18,27,29,38,4,19,28,30,39,3,20,29,40,0,
+		3,21,32,41,0,4,22,31,33,42,4,23,32,34,43,4,24,33,35,44,4,25,34,36,45,4,26,35,37,46,4,27,36,38,47,4,28,37,39,48,4,29,38,40,49,3,30,39,50,0,
+		3,31,42,51,0,4,32,41,43,52,4,33,42,44,53,4,34,43,45,54,4,35,44,46,55,4,36,45,47,56,4,37,46,48,57,4,38,47,49,58,4,39,48,50,59,3,40,49,60,0,
+		3,41,52,61,0,4,42,51,53,62,4,43,52,54,63,4,44,53,55,64,4,45,54,56,65,4,46,55,57,66,4,47,56,58,67,4,48,57,59,68,4,49,58,60,69,3,50,59,70,0,
+		3,51,62,71,0,4,52,61,63,72,4,53,62,64,73,4,54,63,65,74,4,55,64,66,75,4,56,65,67,76,4,57,66,68,77,4,58,67,69,78,4,59,68,70,79,3,60,69,80,0,
+		3,61,72,81,0,4,62,71,73,82,4,63,72,74,83,4,64,73,75,84,4,65,74,76,85,4,66,75,77,86,4,67,76,78,87,4,68,77,79,88,4,69,78,80,89,3,70,79,90,0,
+		3,71,82,91,0,4,72,81,83,92,4,73,82,84,93,4,74,83,85,94,4,75,84,86,95,4,76,85,87,96,4,77,86,88,97,4,78,87,89,98,4,79,88,90,99,3,80,89,100,0,
+		2,81,92,0,0,3,82,91,93,0,3,83,92,94,0,3,84,93,95,0,3,85,94,96,0,3,86,95,97,0,3,87,96,98,0,3,88,97,99,0,3,89,98,100,0,2,90,99,0,0
+	};
+
+	int falha = 0;
+	size_t elementosResultado = 0;
+	float *resultadoX = NULL;
+	float *resultadoY = NULL;
+	falha = resolverPvi2LeiNewton(
+		&resultadoX, &resultadoY, &elementosResultado,
+		95,
+		numeroElementos,
+		x0, y0,
+		dSpringX, dSpringY,
+		tamanhoPasso, numeroPassos,
+		massa, constanteElastica,
+		forcasExternasX, forcasExternasY,
+		restricoesX, restricoesY,
+		conexoes, colunasConexoes);
+
+	double erro = 0.0, maiorErro = 0.0;
+	calculaErro(&erro, &maiorErro, esperado, resultadoX, numeroPassos);
+	if (falha) {
+		fprintf(
+			stderr,
+			"teste_resolverPvi2Newton: falhou com o codigo: %d\n",
+			falha
+		);
+		return falha+1;
+	}
+	if (maiorErro > 0.0015) {
+		fprintf(
+			stderr,
+			"teste_resolverPvi2Newton: maior erro=%f, erro acumulado=%f\n",
+			maiorErro, erro
+		);
+		return 1;
+	}
+	return 0;
+
+	free(resultadoX);
+	free(resultadoY);
+}
 // =============================================================================
 
 int main(
@@ -507,20 +828,33 @@ int main(
 ) {
 	int falha = 0;
 
-	printf("teste_resolverSistemaEquacoes ");
+	printf("executando teste_resolverSistemaEquacoes ");
 	falha = teste_resolverSistemaEquacoes();
-	if (!falha) printf("[OK]\n");
-	else printf("[FALHOU]\n");
+	mostrarResultado(falha);
+	puts("");
 
-	printf("teste_resolverPvcTemperatura_1 ");
+	printf("executando teste_resolverPvcTemperatura_1 ");
 	falha = teste_resolverPvcTemperatura_1();
-	if (!falha) printf("[OK]\n");
-	else printf("[FALHOU]\n");
+	mostrarResultado(falha);
+	puts("");
 
-	printf("teste_resolverPvcTemperatura_2 ");
+
+	printf("executando teste_resolverPvcTemperatura_2 ");
 	falha = teste_resolverPvcTemperatura_2();
-	if (!falha) printf("[OK]\n");
-	else printf("[FALHOU]\n");
+	mostrarResultado(falha);
+	puts("");
+
+/*
+	printf("executando teste_carregarParametros1 ");
+	falha = teste_carregarParametros1();
+	mostrarResultado(falha);
+	puts("");
+*/
+
+	printf("executando teste_resolverPvi2Newton ");
+	falha = teste_resolverPvi2Newton();
+	mostrarResultado(falha);
+	puts("");
 
 	return;
 }
