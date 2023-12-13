@@ -563,6 +563,16 @@ int teste_resolverPvcTemperatura_2() {
 }
 
 int teste_carregarParametros1() {
+	size_t esperadoNumeroElementos = 8;
+	float esperaTamanhoPasso = 0.0005;
+	size_t esperadoNumeroPassos = 100;
+	float esperadoMassa = 1.0;
+	float esperadoConstanteElastica = 2100000.0;
+	float esperadoDSpringX = 70.0;
+	float esperadoDSpringY = 15.0;
+	float esperadosFloatArray = 10.0;
+	size_t esperadosIntArray = 8;
+
 	size_t numeroElementos = 0;
 	float *x0 = NULL;
 	float *y0 = NULL;
@@ -579,7 +589,7 @@ int teste_carregarParametros1() {
 	int *conexoes = NULL;
 	size_t colunasConexoes = 0;
 
-	const char *nomeArquivoJson = "./testeParametrosSimulador1.json";
+	const char *nomeArquivoJson = "./src/test/files/entradaTesteSimulador1.json";
 
 	cJSON *json = NULL;
 	json = carregarJSON(nomeArquivoJson);
@@ -604,6 +614,37 @@ int teste_carregarParametros1() {
 	);
 
 	cJSON_Delete(json);
+
+	char diferente = 0;
+	diferente |= esperadoNumeroElementos == numeroElementos;
+	diferente |= esperaTamanhoPasso == tamanhoPasso;
+	diferente |= esperadoNumeroPassos == numeroPassos;
+	diferente |= esperadoMassa == massa;
+	diferente |= esperadoConstanteElastica == constanteElastica;
+	diferente |= esperadoDSpringX == dSpringX;
+	diferente |= esperadoDSpringY == dSpringY;
+	for (size_t i=0; i<numeroElementos; i++) {
+		diferente |= esperadosFloatArray == x0[i];
+	}
+	for (size_t i=0; i<numeroElementos; i++) {
+		diferente |= esperadosFloatArray == y0[i];
+	}
+	for (size_t i=0; i<numeroElementos; i++) {
+		diferente |= esperadosFloatArray == forcasExternasX[i];
+	}
+	for (size_t i=0; i<numeroElementos; i++) {
+		diferente |= esperadosFloatArray == forcasExternasY[i];
+	}
+	for (size_t i=0; i<numeroElementos; i++) {
+		diferente |= esperadosFloatArray == restrictedX[i];
+	}
+	for (size_t i=0; i<numeroElementos; i++) {
+		diferente |= esperadosFloatArray == restrictedY[i];
+	}
+	for (size_t i=0; i<numeroElementos*colunasConexoes; i++) {
+		diferente |= esperadosIntArray == conexoes[i];
+	}
+
 	free(x0);
 	free(y0);
 	free(forcasExternasX);
@@ -611,58 +652,8 @@ int teste_carregarParametros1() {
 	free(restrictedX);
 	free(restrictedY);
 	free(conexoes);
-/*
-	printf("numeroElementos: %ld\n", numeroElementos);
-	printf("*x0:\n");
-	for (size_t i=0; i<numeroElementos; i++) {
-		printf("%f ", x0[i]);
-		if (i%10 == 9) puts("");
-	}
-	puts("");
-	printf("*y0:\n");
-	for (size_t i=0; i<numeroElementos; i++) {
-		printf("%f ", y0[i]);
-		if (i%10 == 9) puts("");
-	}
-	puts("");
-	printf("dSpringX: %f\n", dSpringX);
-	printf("dSpringY: %f\n", dSpringY);
-	printf("tamanhoPasso: %f\n", tamanhoPasso);
-	printf("numeroPassos: %ld\n", numeroPassos);
-	printf("massa: %f\n", massa);
-	printf("constanteElastica: %f\n", constanteElastica);
-	printf("*forcasExternasX:\n");
-	for (size_t i=0; i<numeroElementos; i++) {
-		printf("%f ", forcasExternasX[i]);
-		if (i%10 == 9) puts("");
-	}
-	puts("");
-	printf("*forcasExternasY:\n");
-	for (size_t i=0; i<numeroElementos; i++) {
-		printf("%f ", forcasExternasY[i]);
-		if (i%10 == 9) puts("");
-	}
-	puts("");
-	printf("*restrictedX:\n");
-	for (size_t i=0; i<numeroElementos; i++) {
-		printf("%d ", restrictedX[i]);
-		if (i%10 == 9) puts("");
-	}
-	puts("");
-	printf("*restrictedY:\n");
-	for (size_t i=0; i<numeroElementos; i++) {
-		printf("%d ", restrictedY[i]);
-		if (i%10 == 9) puts("");
-	}
-	puts("");
-	printf("colunasConexoes: %ld\n", colunasConexoes);
-	printf("*conexoes:\n");
-	for (size_t i=0; i<numeroElementos*colunasConexoes; i++) {
-		printf("%i ", conexoes[i]);
-		if (i%5 == 4) puts("");
-	}
-	puts("");
-*/
+
+	falha |= diferente;
 	if (falha) {
 		fprintf(
 			stderr,
@@ -838,18 +829,15 @@ int main(
 	mostrarResultado(falha);
 	puts("");
 
-
 	printf("executando teste_resolverPvcTemperatura_2 ");
 	falha = teste_resolverPvcTemperatura_2();
 	mostrarResultado(falha);
 	puts("");
 
-/*
 	printf("executando teste_carregarParametros1 ");
 	falha = teste_carregarParametros1();
 	mostrarResultado(falha);
 	puts("");
-*/
 
 	printf("executando teste_resolverPvi2Newton ");
 	falha = teste_resolverPvi2Newton();
