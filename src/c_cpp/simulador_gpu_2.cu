@@ -379,8 +379,8 @@ int resolverPvcTemperatura(
 
 	// SECTION - prepara sistema de equacoes
 	size_t tamanhoProblema = linhasConexoes;
-	size_t tamanhoBloco = 32;
-	int numeroBlocos = (tamanhoProblema-1)/tamanhoBloco+1;
+	size_t tamanhoBloco = 512;
+	size_t numeroBlocos = (tamanhoProblema-1)/tamanhoBloco+1;
 
 	cudaDeviceSynchronize();
 	k_preencherSistemaEquacoes<<<numeroBlocos, tamanhoBloco>>>(
