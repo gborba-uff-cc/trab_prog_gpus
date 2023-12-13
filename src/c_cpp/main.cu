@@ -10,16 +10,20 @@ int main(
 	int argc,
 	char const *argv[]
 ) {
-	if (argc != 2) {
-		puts(\
-"Para executar o algoritmo do simulador que resolve o PVI da segunda lei de Newton\n"
-"execute novamente passando o caminho para um arquivo .json como:\n"
-"    simulador --pvi caminho/arquivo.json\n"
+	if (argc < 3 || argc > 4) {
+		const char *mensagemAjuda = \
+"Uso do comando:\n"
+"    simulador <idSimulador> <arquivoEntrada> <arquivoSaida>\n"
 "\n"
-"o arquivo json caminho/arquivo.json contem valores para: <step_size>, \n"
-"<number_steps>, <particle_mass>, <particle_hardness>, <particle_half_xSize>\n"
-"<particle_half_ySize>, <particle_coords>, <particle_external_force>, \n"
-"<particle_restricted>, <particle_connection>\n"
+"onde:\n"
+"    <idSimulador>    [pvi|pvc]\n"
+"    <arquivoEntrada> caminho para o arquivo json de entrada\n"
+"    <arquivoSaida>   (opcional) caminho para o arquivo de saída sem a extensao\n"
+"\n"
+"O arquivo json de entrada para o simulador com id 'pvi' deve conter valores \n"
+"para: <step_size>, <number_steps>, <particle_mass>, <particle_hardness>,\n"
+"<particle_half_xSize>, <particle_half_ySize>, <particle_coords>,\n"
+"<particle_external_force>, <particle_restricted>, <particle_connection>\n"
 "\n"
 "onde:\n"
 "    <step_size>, <number_steps>, <particle_mass>, <particle_hardness>, \n"
@@ -34,14 +38,9 @@ int main(
 "      quantos vizinhos o elemento representado pelo indice da linha tem \n"
 "      conectado a ele seguido de 4 valores onde apenas os c primeiros numeros\n"
 "      serão considerados\n"
-	);
-		puts(\
-"Para executar o algoritmo do simulador que resolve o PVC da conducao de calor\n"
-"execute novamente passando o caminho para um arquivo .json como:\n"
-"    simulador --pvc caminho/arquivo.json\n"
 "\n"
-"o arquivo json caminho/arquivo.json contem valores para\n"
-"    <x_dist>, <y_dist>, <ij_pos>, <connect>, <boundary_condiditon>\n"
+"O arquivo json de entrada para o simulador com id 'pvc' deve conter valores \n"
+"para: <x_dist>, <y_dist>, <ij_pos>, <connect>, <boundary_condiditon>\n"
 "\n"
 "onde:\n"
 "    <x_dist> e <y_dist> devem ser um valor numerico\n"
@@ -49,8 +48,8 @@ int main(
 "      elemento (indices iniciam em 1)\n"
 "    <connect> matriz onde cada linha contem indices para os vizinhos do elemento\n"
 "    <boundary_condiditon> matriz onde cada linha tem uma indicacao de que o elemento\n"
-"      tem uma condicao de contorno imposta e qual o valor imposto\n"
-	);
+"      tem uma condicao de contorno imposta e qual o valor imposto\n";
+		puts(mensagemAjuda);
 		exit(1);
 	}
 
