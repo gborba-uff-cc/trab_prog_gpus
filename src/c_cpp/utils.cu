@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 
 #include "utils.h"
 
@@ -164,4 +165,17 @@ void concatenarStrings(char **str, const char* const bufferStr1, const char* con
     strcat(buffer, bufferStr2);
 
     *str = buffer;
+}
+
+void dateTimeAsString(
+    char **string
+) {
+    const size_t bytesString = sizeof(char)*20;
+    char *s =(char *) malloc(bytesString);
+    const char* formato = "%Y%m%d%H%M";
+    time_t horarioAtual = time(NULL);
+
+    strftime(s, bytesString, formato, localtime(&horarioAtual));
+    *string = s;
+    return;
 }

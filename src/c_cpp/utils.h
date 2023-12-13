@@ -74,4 +74,7 @@ void concatenarStrings(
     const char* const bufferStr2
 );
 
+void dateTimeAsString(
+    char **string
+);
 #endif
