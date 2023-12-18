@@ -32,3 +32,5 @@ Modificar o simulador desenvolvido durante as aulas de programação científica
 - O código inicial é o que foi escrito por mim durante as aulas da disciplina de 'Programação Científica' com a finalidade de servir como avaliação.
 
 - O simulador de PVI gera a saída apenas para o eixo x do elemento de numero 95, se quiser o resultado para outro elemento o código precisa ser alterado.
+
+- O modelador de PVI não tem interface para aplicar forças externas nem restrções, alterações deve ser realizadas diretamente no json com a nuvem de pontos gerado.
