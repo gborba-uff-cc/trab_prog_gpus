@@ -126,7 +126,7 @@ end
 # ==============================================================================
 
 function main(inJsonFilename)
-    println(">>> Reading input...");
+    # println(">>> Reading input...");
 
     h,k,connect,bc,gridPos = readJson(inJsonFilename);
     outPath = Base.Filesystem.dirname(inJsonFilename)*'/';
@@ -138,10 +138,10 @@ function main(inJsonFilename)
         outFilename = Dates.format(now,dateformat"yyyy\ymm\mdd\dHHhMM\mSS\s");
     end
 
-    println(">>> Input read...");
+    # println(">>> Input read...");
     # --------------------------------------------------------------------------
 
-    println(">>> Starting processing...");
+    # println(">>> Starting processing...");
     # NOTE - this block refers to a differential equation that reigns a thermal problem
     block = getBlock(h,k);
 
@@ -153,12 +153,12 @@ function main(inJsonFilename)
 
     # NOTE - build linear system of equations
     for i = 1:nLines
-        println("i: ",i);
+        # println("i: ",i);
         A[i,i] = block[1];
         # NOTE - for each neighbour
         for j = 1:nNeighbours
             # NOTE - loc is one at a moment (right,left,bottom,up) neighbour
-            println("connect[", i, ',', j, "]: ", connect[i,j]);
+            # println("connect[", i, ',', j, "]: ", connect[i,j]);
             loc = connect[i,j];
             # NOTE - include in A if there is a neighbour and it isnt a Dirichlet condition
             if loc > 0  # is a neighbour
@@ -183,18 +183,18 @@ function main(inJsonFilename)
     end
 
     result = A \ b
-    println(">>> Processing finished...");
+    # println(">>> Processing finished...");
     # --------------------------------------------------------------------------
 
-    println(">>> Generating output...");
+    # println(">>> Generating output...");
 
     outputResJson(gridPos,result[:,1],outPath,outFilename);
     outputResCsv(gridPos,result[:,1],outPath,outFilename)
 
-    println(">>> Output generated...");
+    # println(">>> Output generated...");
 end
 
-println(">>> Student: Gabriel da Cunha Borba\n");
+# println(">>> Student: Gabriel da Cunha Borba\n");
 if length(ARGS) == 1
     main(ARGS[1]);
 else
@@ -202,4 +202,4 @@ else
     println(">>> Run again passing the path to an archive .json containing values to:\n",
     "    <x_dist>, <y_dist>, <ij_pos>, <connect>, <boundary_condiditon>");
 end
-println(">>> Program closed.");
+# println(">>> Program closed.");
