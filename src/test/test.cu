@@ -564,7 +564,7 @@ int teste_resolverPvcTemperatura_2() {
 
 int teste_carregarParametros1() {
 	size_t esperadoNumeroElementos = 8;
-	float esperaTamanhoPasso = 0.0005;
+	float esperadoTamanhoPasso = 0.0005;
 	size_t esperadoNumeroPassos = 100;
 	float esperadoMassa = 1.0;
 	float esperadoConstanteElastica = 2100000.0;
@@ -616,33 +616,33 @@ int teste_carregarParametros1() {
 	cJSON_Delete(json);
 
 	char diferente = 0;
-	diferente |= esperadoNumeroElementos == numeroElementos;
-	diferente |= esperaTamanhoPasso == tamanhoPasso;
-	diferente |= esperadoNumeroPassos == numeroPassos;
-	diferente |= esperadoMassa == massa;
-	diferente |= esperadoConstanteElastica == constanteElastica;
-	diferente |= esperadoDSpringX == dSpringX;
-	diferente |= esperadoDSpringY == dSpringY;
+	diferente |= esperadoNumeroElementos != numeroElementos;
+	diferente |= esperadoTamanhoPasso != tamanhoPasso;
+	diferente |= esperadoNumeroPassos != numeroPassos;
+	diferente |= esperadoMassa != massa;
+	diferente |= esperadoConstanteElastica != constanteElastica;
+	diferente |= esperadoDSpringX != dSpringX;
+	diferente |= esperadoDSpringY != dSpringY;
 	for (size_t i=0; i<numeroElementos; i++) {
-		diferente |= esperadosFloatArray == x0[i];
+		diferente |= esperadosFloatArray != x0[i];
 	}
 	for (size_t i=0; i<numeroElementos; i++) {
-		diferente |= esperadosFloatArray == y0[i];
+		diferente |= esperadosFloatArray != y0[i];
 	}
 	for (size_t i=0; i<numeroElementos; i++) {
-		diferente |= esperadosFloatArray == forcasExternasX[i];
+		diferente |= esperadosFloatArray != forcasExternasX[i];
 	}
 	for (size_t i=0; i<numeroElementos; i++) {
-		diferente |= esperadosFloatArray == forcasExternasY[i];
+		diferente |= esperadosFloatArray != forcasExternasY[i];
 	}
 	for (size_t i=0; i<numeroElementos; i++) {
-		diferente |= esperadosFloatArray == restrictedX[i];
+		diferente |= esperadosFloatArray != restrictedX[i];
 	}
 	for (size_t i=0; i<numeroElementos; i++) {
-		diferente |= esperadosFloatArray == restrictedY[i];
+		diferente |= esperadosFloatArray != restrictedY[i];
 	}
 	for (size_t i=0; i<numeroElementos*colunasConexoes; i++) {
-		diferente |= esperadosIntArray == conexoes[i];
+		diferente |= esperadosIntArray != conexoes[i];
 	}
 
 	free(x0);
