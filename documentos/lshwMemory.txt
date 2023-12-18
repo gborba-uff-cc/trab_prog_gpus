@@ -1,0 +1,72 @@
+  *-firmware
+       description: BIOS
+       vendor: American Megatrends Inc.
+       physical id: 0
+       version: 2701
+       date: 03/24/2016
+       size: 64KiB
+       capacity: 8MiB
+       capabilities: pci upgrade shadowing cdboot bootselect socketedrom edd int13floppy1200 int13floppy720 int13floppy2880 int5printscreen int9keyboard int14serial int17printer acpi usb biosbootspecification uefi
+  *-cache:0
+       description: L1 cache
+       physical id: 5
+       slot: L1-Cache
+       size: 288KiB
+       capacity: 288KiB
+       clock: 1GHz (1.0ns)
+       capabilities: pipeline-burst internal write-back unified
+       configuration: level=1
+  *-cache:1
+       description: L2 cache
+       physical id: 6
+       slot: L2-Cache
+       size: 6MiB
+       capacity: 6MiB
+       clock: 1GHz (1.0ns)
+       capabilities: pipeline-burst internal write-back unified
+       configuration: level=2
+  *-cache:2
+       description: L3 cache
+       physical id: 7
+       slot: L3-Cache
+       size: 8MiB
+       capacity: 8MiB
+       clock: 1GHz (1.0ns)
+       capabilities: pipeline-burst internal write-back unified
+       configuration: level=3
+  *-memory
+       description: System Memory
+       physical id: 2a
+       slot: System board or motherboard
+       size: 8GiB
+     *-bank:0
+          description: DIMM Synchronous [empty]
+          product: Array1_PartNumber0
+          vendor: Manufacturer0
+          physical id: 0
+          serial: [REMOVED]
+          slot: DIMM0
+     *-bank:1
+          description: DIMM DDR3 Synchronous Unbuffered (Unregistered) 1600 MHz (0,6 ns)
+          product: MMXIV
+          vendor: Undefined
+          physical id: 1
+          serial: [REMOVED]
+          slot: DIMM1
+          size: 8GiB
+          width: 64 bits
+          clock: 1600MHz (0.6ns)
+     *-bank:2
+          description: DIMM Synchronous [empty]
+          product: Array1_PartNumber2
+          vendor: Manufacturer2
+          physical id: 2
+          serial: [REMOVED]
+          slot: DIMM2
+     *-bank:3
+          description: DIMM Synchronous [empty]
+          product: Array1_PartNumber3
+          vendor: Manufacturer3
+          physical id: 3
+          serial: [REMOVED]
+          slot: DIMM3
