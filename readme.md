@@ -2,7 +2,7 @@
 
 semestre: 2023-2
 
-status: em progreso
+status: objetivo finalizado
 
 ## Objetivo geral
 
@@ -30,3 +30,5 @@ Modificar o simulador desenvolvido durante as aulas de programação científica
 ## Observações
 
 - O código inicial é o que foi escrito por mim durante as aulas da disciplina de 'Programação Científica' com a finalidade de servir como avaliação.
+
+- O simulador de PVI gera a saída apenas para o eixo x do elemento de numero 95, se quiser o resultado para outro elemento o código precisa ser alterado.
